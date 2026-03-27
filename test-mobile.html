@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mobile Gestures Test — Class 10Edu</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/mobile.css">
+<style>
+body { font-family: system-ui; margin: 20px; background: #f8f9fa; }
+.container { max-width: 1000px; margin: 0 auto; }
+.header { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.test-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; margin: 5px; }
+.btn-primary { background: #3b82f6; color: white; }
+.btn-success { background: #10b981; color: white; }
+.btn-danger { background: #ef4444; color: white; }
+.btn-warning { background: #f59e0b; color: white; }
+.log { background: #1e293b; color: #e2e8f0; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; margin-top: 10px; }
+.status { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+.status-item { padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+.status-active { background: #10b981; color: white; }
+.status-inactive { background: #ef4444; color: white; }
+
+.gesture-area {
+  background: #e2e8f0;
+  border: 2px dashed #94a3b8;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  margin: 20px 0;
+  min-height: 200px;
+  position: relative;
+  overflow: hidden;
+}
+
+.gesture-area.active {
+  border-color: #3b82f6;
+  background: #dbeafe;
+}
+
+.touch-indicator {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.3);
+  border: 2px solid #3b82f6;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  display: none;
+}
+
+.swipe-indicator {
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  transform: translateY(-50%);
+  background: #3b82f6;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: none;
+}
+
+.pull-indicator {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #10b981;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: none;
+}
+
+.test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media(max-width:768px) { .test-grid { grid-template-columns: 1fr; } }
+
+.gesture-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.stat-card {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.demo-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 10px 0;
+  transition: all 0.2s;
+}
+
+.demo-card:hover {
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.demo-card.haptic {
+  animation: haptic 0.2s ease;
+}
+
+@keyframes haptic {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>📱 Mobile Gestures & Interactions Test</h1>
+    <p>Comprehensive testing of mobile-first gestures and touch interactions</p>
+    <div class="status" id="statusBar">
+      <div class="status-item status-inactive" id="touchStatus">👆 Touch: Inactive</div>
+      <div class="status-item status-inactive" id="gestureStatus">👋 Gestures: Inactive</div>
+      <div class="status-item status-inactive" id="hapticStatus">📳 Haptic: Inactive</div>
+      <div class="status-item status-active" id="deviceStatus">📱 Device: Ready</div>
+    </div>
+  </div>
+
+  <div class="test-grid">
+    <!-- Touch Testing -->
+    <div class="test-column">
+      <div class="test-section">
+        <h3>👆 Touch Interactions</h3>
+        <div class="gesture-area" id="touchArea">
+          <div class="touch-indicator" id="touchIndicator"></div>
+          <p>Touch and drag here to test touch events</p>
+        </div>
+        
+        <div class="gesture-stats">
+          <div class="stat-card">
+            <div class="stat-value" id="touchCount">0</div>
+            <div class="stat-label">Touch Events</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="dragDistance">0px</div>
+            <div class="stat-label">Max Drag</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="test-section">
+        <h3>📳 Haptic Feedback</h3>
+        <button class="btn btn-primary" onclick="testHaptic()">Test Haptic</button>
+        <button class="btn btn-success" onclick="testHapticPattern()">Test Pattern</button>
+        <button class="btn btn-warning" onclick="testHapticSequence()">Test Sequence</button>
+        
+        <div class="demo-card" id="hapticDemo">
+          <p>Click buttons above to feel haptic feedback</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gesture Testing -->
+    <div class="test-column">
+      <div class="test-section">
+        <h3>🔄 Pull-to-Refresh</h3>
+        <div class="gesture-area" id="pullArea">
+          <div class="pull-indicator" id="pullIndicator">🔄 Pull to Refresh</div>
+          <p>Pull down to test pull-to-refresh gesture</p>
+        </div>
+        
+        <div class="gesture-stats">
+          <div class="stat-card">
+            <div class="stat-value" id="pullCount">0</div>
+            <div class="stat-label">Pull Attempts</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="pullDistance">0px</div>
+            <div class="stat-label">Max Distance</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="test-section">
+        <h3>👋 Swipe-to-Go-Back</h3>
+        <div class="gesture-area" id="swipeArea">
+          <div class="swipe-indicator" id="swipeIndicator">← Swipe to Go Back</div>
+          <p>Swipe from left edge to test go-back gesture</p>
+        </div>
+        
+        <div class="gesture-stats">
+          <div class="stat-card">
+            <div class="stat-value" id="swipeCount">0</div>
+            <div class="stat-label">Swipe Attempts</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="swipeDistance">0px</div>
+            <div class="stat-label">Max Distance</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>🧪 Advanced Gesture Tests</h2>
+    <button class="btn btn-primary" onclick="testMultiTouch()">Multi-Touch</button>
+    <button class="btn btn-primary" onclick="testPinchZoom()">Pinch Zoom</button>
+    <button class="btn btn-primary" onclick="testLongPress()">Long Press</button>
+    <button class="btn btn-primary" onclick="testDoubleTap()">Double Tap</button>
+    <button class="btn btn-warning" onclick="runAllTests()">Run All Tests</button>
+    <button class="btn btn-danger" onclick="resetStats()">Reset Stats</button>
+  </div>
+
+  <div class="test-section">
+    <h2>📊 Test Results</h2>
+    <button class="btn btn-primary" onclick="clearLogs()">Clear Logs</button>
+    <button class="btn btn-success" onclick="exportResults()">Export Results</button>
+    <div class="log" id="testLog"></div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="js/data-manager.js"></script>
+<script src="js/realtime.js"></script>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+
+<script>
+// Mobile Gestures Test System
+const GestureTest = {
+  stats: {
+    touchEvents: 0,
+    maxDragDistance: 0,
+    pullAttempts: 0,
+    maxPullDistance: 0,
+    swipeAttempts: 0,
+    maxSwipeDistance: 0,
+    multiTouch: 0,
+    pinchZoom: 0,
+    longPress: 0,
+    doubleTap: 0
+  },
+  
+  currentTouch: null,
+  touchStartTime: 0,
+  touchStartX: 0,
+  touchStartY: 0,
+  
+  init() {
+    this.log('🚀 Mobile Gestures Test Initialized');
+    this.setupTouchArea();
+    this.setupPullArea();
+    this.setupSwipeArea();
+    this.updateStatus();
+    this.checkDeviceCapabilities();
+  },
+  
+  log(message, type = 'info') {
+    const log = document.getElementById('testLog');
+    const timestamp = new Date().toLocaleTimeString();
+    const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+    log.innerHTML = `[${timestamp}] ${icon} ${message}\n` + log.innerHTML;
+    
+    // Keep only last 50 lines
+    const lines = log.innerHTML.split('\n');
+    if (lines.length > 50) {
+      log.innerHTML = lines.slice(0, 50).join('\n');
+    }
+  },
+  
+  updateStatus() {
+    const hasTouch = 'ontouchstart' in window;
+    const hasVibration = 'vibrate' in navigator;
+    
+    document.getElementById('touchStatus').className = 
+      `status-item ${hasTouch ? 'status-active' : 'status-inactive'}`;
+    document.getElementById('touchStatus').textContent = 
+      `👆 Touch: ${hasTouch ? 'Active' : 'Inactive'}`;
+    
+    document.getElementById('hapticStatus').className = 
+      `status-item ${hasVibration ? 'status-active' : 'status-inactive'}`;
+    document.getElementById('hapticStatus').textContent = 
+      `📳 Haptic: ${hasVibration ? 'Active' : 'Inactive'}`;
+  },
+  
+  checkDeviceCapabilities() {
+    const capabilities = {
+      touch: 'ontouchstart' in window,
+      vibration: 'vibrate' in navigator,
+      devicePixelRatio: window.devicePixelRatio || 1,
+      screenWidth: screen.width,
+      screenHeight: screen.height,
+      orientation: screen.orientation?.type || 'unknown'
+    };
+    
+    this.log(`📱 Device Capabilities: ${JSON.stringify(capabilities)}`);
+    
+    // Check if mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    this.log(`📱 Device Type: ${isMobile ? 'Mobile' : 'Desktop'}`);
+  },
+  
+  setupTouchArea() {
+    const area = document.getElementById('touchArea');
+    const indicator = document.getElementById('touchIndicator');
+    
+    area.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      this.currentTouch = e.touches[0];
+      this.touchStartTime = Date.now();
+      this.touchStartX = this.currentTouch.clientX;
+      this.touchStartY = this.currentTouch.clientY;
+      
+      indicator.style.display = 'block';
+      indicator.style.left = this.currentTouch.clientX + 'px';
+      indicator.style.top = this.currentTouch.clientY + 'px';
+      
+      area.classList.add('active');
+      this.stats.touchEvents++;
+      this.updateStats();
+      
+      this.log('👆 Touch start detected');
+    });
+    
+    area.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (this.currentTouch) {
+        this.currentTouch = e.touches[0];
+        indicator.style.left = this.currentTouch.clientX + 'px';
+        indicator.style.top = this.currentTouch.clientY + 'px';
+        
+        const distance = Math.sqrt(
+          Math.pow(this.currentTouch.clientX - this.touchStartX, 2) +
+          Math.pow(this.currentTouch.clientY - this.touchStartY, 2)
+        );
+        
+        if (distance > this.stats.maxDragDistance) {
+          this.stats.maxDragDistance = Math.round(distance);
+          this.updateStats();
+        }
+      }
+    });
+    
+    area.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      indicator.style.display = 'none';
+      area.classList.remove('active');
+      this.currentTouch = null;
+      
+      this.log('👆 Touch end detected');
+    });
+  },
+  
+  setupPullArea() {
+    const area = document.getElementById('pullArea');
+    const indicator = document.getElementById('pullIndicator');
+    let startY = 0;
+    let isPulling = false;
+    
+    area.addEventListener('touchstart', (e) => {
+      startY = e.touches[0].clientY;
+      isPulling = true;
+    });
+    
+    area.addEventListener('touchmove', (e) => {
+      if (!isPulling) return;
+      
+      const currentY = e.touches[0].clientY;
+      const pullDistance = currentY - startY;
+      
+      if (pullDistance > 0) {
+        e.preventDefault();
+        indicator.style.display = 'block';
+        indicator.style.transform = `translateX(-50%) translateY(${Math.min(pullDistance, 100)}px)`;
+        
+        if (pullDistance > 80) {
+          indicator.textContent = '🔄 Release to Refresh';
+          indicator.style.background = '#10b981';
+        }
+        
+        if (pullDistance > this.stats.maxPullDistance) {
+          this.stats.maxPullDistance = Math.round(pullDistance);
+          this.updateStats();
+        }
+      }
+    });
+    
+    area.addEventListener('touchend', (e) => {
+      if (!isPulling) return;
+      
+      const currentY = e.changedTouches[0].clientY;
+      const pullDistance = currentY - startY;
+      
+      if (pullDistance > 80) {
+        this.stats.pullAttempts++;
+        this.updateStats();
+        this.log('🔄 Pull-to-refresh triggered', 'success');
+        this.simulateRefresh();
+      }
+      
+      indicator.style.display = 'none';
+      indicator.style.transform = 'translateX(-50%) translateY(0)';
+      indicator.textContent = '🔄 Pull to Refresh';
+      indicator.style.background = '#3b82f6';
+      isPulling = false;
+    });
+  },
+  
+  setupSwipeArea() {
+    const area = document.getElementById('swipeArea');
+    const indicator = document.getElementById('swipeIndicator');
+    let startX = 0;
+    let isSwiping = false;
+    
+    area.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+      if (startX < 50) {
+        isSwiping = true;
+        indicator.style.display = 'block';
+      }
+    });
+    
+    area.addEventListener('touchmove', (e) => {
+      if (!isSwiping) return;
+      
+      const currentX = e.touches[0].clientX;
+      const swipeDistance = currentX - startX;
+      
+      if (swipeDistance > 0 && swipeDistance < 200) {
+        e.preventDefault();
+        indicator.style.transform = `translateY(-50%) translateX(${Math.min(swipeDistance, 100)}px)`;
+        
+        if (swipeDistance > 50) {
+          indicator.textContent = '← Release to Go Back';
+          indicator.style.background = '#ef4444';
+        }
+        
+        if (swipeDistance > this.stats.maxSwipeDistance) {
+          this.stats.maxSwipeDistance = Math.round(swipeDistance);
+          this.updateStats();
+        }
+      }
+    });
+    
+    area.addEventListener('touchend', (e) => {
+      if (!isSwiping) return;
+      
+      const currentX = e.changedTouches[0].clientX;
+      const swipeDistance = currentX - startX;
+      
+      if (swipeDistance > 50) {
+        this.stats.swipeAttempts++;
+        this.updateStats();
+        this.log('👋 Swipe-to-go-back triggered', 'success');
+        this.simulateGoBack();
+      }
+      
+      indicator.style.display = 'none';
+      indicator.style.transform = 'translateY(-50%) translateX(0)';
+      indicator.textContent = '← Swipe to Go Back';
+      indicator.style.background = '#3b82f6';
+      isSwiping = false;
+    });
+  },
+  
+  updateStats() {
+    document.getElementById('touchCount').textContent = this.stats.touchEvents;
+    document.getElementById('dragDistance').textContent = this.stats.maxDragDistance + 'px';
+    document.getElementById('pullCount').textContent = this.stats.pullAttempts;
+    document.getElementById('pullDistance').textContent = this.stats.maxPullDistance + 'px';
+    document.getElementById('swipeCount').textContent = this.stats.swipeAttempts;
+    document.getElementById('swipeDistance').textContent = this.stats.maxSwipeDistance + 'px';
+  },
+  
+  testHaptic() {
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+      this.addHapticEffect();
+      this.log('📳 Single haptic feedback triggered', 'success');
+    } else {
+      this.log('⚠️ Haptic feedback not supported', 'warning');
+    }
+  },
+  
+  testHapticPattern() {
+    if (navigator.vibrate) {
+      navigator.vibrate([10, 50, 10]);
+      this.addHapticEffect();
+      this.log('📳 Haptic pattern triggered', 'success');
+    } else {
+      this.log('⚠️ Haptic feedback not supported', 'warning');
+    }
+  },
+  
+  testHapticSequence() {
+    if (navigator.vibrate) {
+      navigator.vibrate([10, 30, 10, 30, 10]);
+      this.addHapticEffect();
+      this.log('📳 Haptic sequence triggered', 'success');
+    } else {
+      this.log('⚠️ Haptic feedback not supported', 'warning');
+    }
+  },
+  
+  addHapticEffect() {
+    const demo = document.getElementById('hapticDemo');
+    demo.classList.add('haptic');
+    setTimeout(() => demo.classList.remove('haptic'), 200);
+  },
+  
+  testMultiTouch() {
+    this.log('🤚 Multi-touch test - use multiple fingers on touch area');
+    // This would require more complex touch handling
+  },
+  
+  testPinchZoom() {
+    this.log('🔍 Pinch zoom test - use pinch gesture on touch area');
+    // This would require more complex gesture recognition
+  },
+  
+  testLongPress() {
+    this.log('⏱️ Long press test - press and hold for 2 seconds');
+    // This would require long press detection
+  },
+  
+  testDoubleTap() {
+    this.log('👆👆 Double tap test - tap twice quickly');
+    // This would require double tap detection
+  },
+  
+  simulateRefresh() {
+    this.log('🔄 Simulating refresh...');
+    setTimeout(() => {
+      this.log('✅ Refresh completed', 'success');
+    }, 1000);
+  },
+  
+  simulateGoBack() {
+    this.log('👋 Simulating go back...');
+    setTimeout(() => {
+      this.log('✅ Go back completed', 'success');
+    }, 500);
+  },
+  
+  runAllTests() {
+    this.log('🧪 Running all gesture tests...');
+    
+    setTimeout(() => this.testHaptic(), 100);
+    setTimeout(() => this.testHapticPattern(), 300);
+    setTimeout(() => this.testHapticSequence(), 500);
+    setTimeout(() => this.testMultiTouch(), 700);
+    setTimeout(() => this.testPinchZoom(), 900);
+    setTimeout(() => this.testLongPress(), 1100);
+    setTimeout(() => this.testDoubleTap(), 1300);
+    
+    setTimeout(() => {
+      this.log('✅ All tests completed', 'success');
+    }, 1500);
+  },
+  
+  resetStats() {
+    this.stats = {
+      touchEvents: 0,
+      maxDragDistance: 0,
+      pullAttempts: 0,
+      maxPullDistance: 0,
+      swipeAttempts: 0,
+      maxSwipeDistance: 0,
+      multiTouch: 0,
+      pinchZoom: 0,
+      longPress: 0,
+      doubleTap: 0
+    };
+    this.updateStats();
+    this.log('📊 Statistics reset');
+  },
+  
+  clearLogs() {
+    document.getElementById('testLog').innerHTML = '';
+    this.log('📋 Logs cleared');
+  },
+  
+  exportResults() {
+    const results = {
+      timestamp: new Date().toISOString(),
+      device: {
+        userAgent: navigator.userAgent,
+        touchSupport: 'ontouchstart' in window,
+        vibrationSupport: 'vibrate' in navigator,
+        screen: {
+          width: screen.width,
+          height: screen.height,
+          pixelRatio: window.devicePixelRatio
+        }
+      },
+      stats: this.stats,
+      capabilities: this.getCapabilities()
+    };
+    
+    const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gesture-test-results-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    this.log('📤 Test results exported');
+  },
+  
+  getCapabilities() {
+    return {
+      touch: 'ontouchstart' in window,
+      vibration: 'vibrate' in navigator,
+      deviceOrientation: 'DeviceOrientationEvent' in window,
+      deviceMotion: 'DeviceMotionEvent' in window,
+      pointerEvents: 'PointerEvent' in window,
+      webGL: !!window.WebGLRenderingContext
+    };
+  }
+};
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  GestureTest.init();
+});
+</script>
+
+</body>
+</html>

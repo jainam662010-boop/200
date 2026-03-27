@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Quiz — Class 10Edu</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="nb"></div>
+  <div class="page-layout">
+    <div id="sb"></div>
+    <main class="main-area" id="mainArea">
+      <div style="display:flex;align-items:center;justify-content:center;padding:80px 0"><div class="spinner"></div></div>
+    </main>
+  </div>
+  <div class="page-watermark"></div>
+
+  <script src="js/app.js"></script>
+  <script src="js/security.js"></script>
+  <script src="js/theme_todo.js"></script>
+  <script>
+  'use strict';
+
+  const Quiz = {
+    qs: [], cur: 0, sel: null, answered: false, score: 0, sid: '', cid: '',
+    start(qs, sid, cid) {
+      if (!qs || qs.length === 0) { App.toast('No questions available', '⚠️'); return; }
+      this.qs = qs; this.cur = 0; this.sel = null;
+      this.answered = false; this.score = 0;
+      this.sid = sid; this.cid = cid;
+      this._render();
+    },
+    _render() {
+      const el = document.getElementById('quizBody');
+      if (!el) return;
+      const q   = this.qs[this.cur];
+      const pct = Math.round((this.cur / this.qs.length) * 100);
+      const L   = ['A','B','C','D','E'];
+      el.innerHTML =
+        `<div class="qpbar"><div class="qpfill" id="qpf" style="width:${pct}%"></div></div>` +
+        `<span class="q-label">Question ${this.cur + 1} of ${this.qs.length}` +
+          (q.difficulty ? ` &nbsp;·&nbsp; ${VidyaSec.sanitize(q.difficulty)}` : '') + `</span>` +
+        `<div class="q-text">${VidyaSec.sanitize(q.q)}</div>` +
+        `<div class="q-opts" id="qOpts">` +
+          q.options.map((o, i) =>
+            `<button class="q-opt" data-idx="${i}">` +
+              `<div class="q-lbl">${L[i] || (i+1)}</div>` +
+              VidyaSec.sanitize(o) +
+            `</button>`
+          ).join('') +
+        `</div>` +
+        `<div class="q-fb" id="qFb"></div>` +
+        `<div class="q-acts">` +
+          `<button class="btn btn-b" id="qSub">Submit Answer</button>` +
+          `<button class="btn btn-gh" id="qNext" style="display:none">` +
+            (this.cur < this.qs.length - 1 ? 'Next →' : 'See Results') +
+          `</button>` +
+        `</div>`;
+      document.getElementById('qOpts').addEventListener('click', e => {
+        const btn = e.target.closest('.q-opt');
+        if (btn && !this.answered) this._pick(parseInt(btn.dataset.idx));
+      });
+      document.getElementById('qSub').addEventListener('click',  () => this._submit());
+      document.getElementById('qNext').addEventListener('click', () => this._next());
+    },
+    _pick(i) {
+      this.sel = i;
+      document.querySelectorAll('.q-opt').forEach((b, j) => b.classList.toggle('sel', j === i));
+    },
+    _submit() {
+      if (this.sel === null || this.answered) return;
+      this.answered = true;
+      const q = this.qs[this.cur];
+      document.querySelectorAll('.q-opt').forEach((b, i) => {
+        if (i === q.answer)  b.classList.add('ok');
+        else if (i === this.sel) b.classList.add('ng');
+      });
+      const fb = document.getElementById('qFb');
+      if (this.sel === q.answer) {
+        this.score++;
+        fb.className = 'q-fb ok show';
+        fb.textContent = '✅ Correct!';
+      } else {
+        fb.className = 'q-fb ng show';
+        fb.innerHTML = '❌ Incorrect. Correct: <strong>' +
+          VidyaSec.sanitize(q.options[q.answer]) + '</strong>';
+      }
+      document.getElementById('qSub').style.display  = 'none';
+      document.getElementById('qNext').style.display = 'inline-flex';
+      const pf = document.getElementById('qpf');
+      if (pf) pf.style.width = Math.round(((this.cur + 1) / this.qs.length) * 100) + '%';
+    },
+    _next() {
+      if (this.cur >= this.qs.length - 1) { this._result(); return; }
+      this.cur++; this.sel = null; this.answered = false;
+      this._render();
+    },
+    _result() {
+      const pct = Math.round(this.score / this.qs.length * 100);
+      const [em, msg] = pct >= 80 ? ['🏆','Board Ready!']
+                      : pct >= 60 ? ['👍','Good work!']
+                      : pct >= 40 ? ['📚','Keep practising!']
+                      : ['💪','Revise and retry!'];
+      const el = document.getElementById('quizBody');
+      if (!el) return;
+      el.innerHTML =
+        `<div class="quiz-result">` +
+          `<span class="qr-em">${em}</span>` +
+          `<div style="font-size:1.1rem;color:var(--ink);margin-bottom:8px;font-weight:800">${msg}</div>` +
+          `<div class="qr-score">${this.score}/${this.qs.length}</div>` +
+          `<div class="qr-sub">${pct}% accuracy</div>` +
+          `<div style="display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:16px">` +
+            `<button class="btn btn-gh" id="qRetry">↺ Retry</button>` +
+            `<a class="btn btn-tl" id="qBack" href="chapter.html?subject=${this.sid}&chapter=${this.cid}">← Back to Chapter</a>` +
+          `</div>` +
+        `</div>`;
+      document.getElementById('qRetry').addEventListener('click', () => Quiz.start(Quiz.qs, Quiz.sid, Quiz.cid));
+      App.saveScore(this.sid, this.cid, this.score, this.qs.length);
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', async()=>{
+    const sid = App.getParam('subject') || '';
+    const cid = App.getParam('chapter') || '';
+    if(!sid || !cid){ location.href='dashboard.html'; return; }
+
+    App.initPage(sid);
+    await App.loadData();
+    const subj = App.getSubject(sid);
+    const ch   = App.getChapter(sid,cid);
+    if(!subj || !ch){ location.href='dashboard.html'; return; }
+    document.title = `Quiz · ${ch.title} — Class 10Edu`;
+
+    const admData = App._parseLS('vm_admin_data', { quiz: [] });
+    const extra = (admData.quiz||[]).filter(q => q.chapter === cid || q.subject === sid);
+    const allQ = [...(ch.quiz||[]), ...extra];
+
+    document.getElementById('mainArea').innerHTML = `
+      <div class="page-head au">
+        <div class="breadcrumb"><a href="dashboard.html">Dashboard</a><span class="sep">›</span><a href="subject.html?id=${sid}">${VidyaSec.sanitize(subj.name)}</a><span class="sep">›</span><a href="chapter.html?subject=${sid}&chapter=${cid}">${VidyaSec.sanitize(ch.title)}</a><span class="sep">›</span><span>Quiz</span></div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div>
+            <h1>🧩 Chapter Quiz</h1>
+            <div class="lead">${VidyaSec.sanitize(ch.title)} · ${allQ.length} questions</div>
+          </div>
+          <a class="btn btn-gh btn-sm" href="chapter.html?subject=${sid}&chapter=${cid}">← Back</a>
+        </div>
+      </div>
+      <div class="quiz-card au-1">
+        <div class="card-top-rule"></div>
+        <div class="sec-head"><h3>Start</h3><span class="chip chip-a">${allQ.length} Qs</span></div>
+        <div id="quizBody" class="quiz-body">
+          <div style="text-align:center;padding:16px">
+            <p style="color:var(--ink-3);margin-bottom:14px;font-size:.88rem">Answer honestly. Focus on concepts, not speed.</p>
+            <button class="btn btn-b btn-lg" id="startQuizBtn">🚀 Start Quiz</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById('startQuizBtn')?.addEventListener('click', ()=>Quiz.start(allQ, sid, cid));
+  });
+  </script>
+  <script src="js/music.js"></script>
+</body>
+</html>
+

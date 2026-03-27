@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Sample Papers — Class 10Edu</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="nb"></div>
+  <div class="page-layout">
+    <div id="sb"></div>
+    <main class="main-area" id="mainArea">
+      <div style="display:flex;align-items:center;justify-content:center;padding:80px 0"><div class="spinner"></div></div>
+    </main>
+  </div>
+  <div class="page-watermark"></div>
+
+  <script src="js/app.js"></script>
+  <script src="js/security.js"></script>
+  <script src="js/theme_todo.js"></script>
+  <script>
+  'use strict';
+  document.addEventListener('DOMContentLoaded', async()=>{
+    App.initPage('sample-papers');
+    await App.loadData();
+    const adm = App._parseLS('vm_admin_data', {pdfs:[]});
+    const papers = (adm.pdfs||[]).filter(p => (p.type||'').toLowerCase().includes('past') || (p.type||'').toLowerCase().includes('paper') || (p.type||'').toLowerCase().includes('sample'));
+
+    const main = document.getElementById('mainArea');
+    main.innerHTML = `
+      <div class="page-head au">
+        <div class="breadcrumb"><a href="dashboard.html">Dashboard</a><span class="sep">›</span><span>Sample Papers</span></div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div>
+            <h1>🏆 Sample Papers</h1>
+            <div class="lead">Board-style practice PDFs managed by admin</div>
+          </div>
+          ${papers.length?`<span class="chip chip-a">${papers.length} papers</span>`:''}
+        </div>
+      </div>
+
+      ${papers.length?`
+        <div class="pdf-card au-1">
+          <div class="card-top-rule"></div>
+          <div class="sec-head"><h3>📁 Papers Library</h3><span class="chip chip-tl">PDF</span></div>
+          <div class="card-pad">
+            ${papers.map(p=>`
+              <div class="pdf-row">
+                <span style="font-size:20px">📄</span>
+                <span style="flex:1;font-size:.84rem;font-weight:700">${VidyaSec.sanitize(p.name)}</span>
+                <span class="chip chip-b">${VidyaSec.sanitize(App.getSubject(p.subject)?.name || p.subject || 'General')}</span>
+                <a class="btn btn-gh btn-sm" href="${p.url}" target="_blank" rel="noopener">Open →</a>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `:`
+        <div class="gcard au-1" style="padding:24px;text-align:center">
+          <div style="font-size:56px;margin-bottom:10px">📄</div>
+          <div style="font-family:var(--font);font-weight:800;font-size:1.15rem;color:var(--ink);margin-bottom:6px">No sample papers yet</div>
+          <div style="color:var(--ink-3);font-size:.88rem;max-width:520px;margin:0 auto 14px;line-height:1.7">
+            Admin can add PDFs in <strong>Control Panel → PDF Library</strong> and choose type like <em>Past Paper</em> / <em>Sample Paper</em>.
+          </div>
+          <a class="btn btn-b" href="admin.html">Open Admin →</a>
+        </div>
+      `}
+    `;
+  });
+  </script>
+  <script src="js/music.js"></script>
+</body>
+</html>
+

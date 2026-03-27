@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Real-Time System Test — Class 10Edu</title>
+<style>
+body { font-family: system-ui; margin: 20px; background: #f8f9fa; }
+.container { max-width: 1200px; margin: 0 auto; }
+.header { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.test-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
+.btn-primary { background: #3b82f6; color: white; }
+.btn-success { background: #10b981; color: white; }
+.btn-danger { background: #ef4444; color: white; }
+.log { background: #1e293b; color: #e2e8f0; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; margin-top: 10px; }
+.status { display: flex; gap: 10px; margin-bottom: 15px; }
+.status-item { padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+.status-online { background: #10b981; color: white; }
+.status-offline { background: #ef4444; color: white; }
+.status-syncing { background: #f59e0b; color: white; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🔄 Real-Time System Test</h1>
+    <p>Production-grade real-time update system with event-driven architecture</p>
+    <div class="status" id="statusBar">
+      <div class="status-item status-online" id="networkStatus">🌐 Online</div>
+      <div class="status-item status-syncing" id="syncStatus">🔄 Syncing...</div>
+      <div class="status-item" id="queueStatus">📦 Queue: 0</div>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>📡 Event Bus Test</h2>
+    <button class="btn btn-primary" onclick="testEventBus()">Test Event Bus</button>
+    <button class="btn btn-success" onclick="testEventPersistence()">Test Event Persistence</button>
+    <button class="btn btn-danger" onclick="clearEvents()">Clear Events</button>
+    <div class="log" id="eventLog"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>💾 Data Manager Test</h2>
+    <button class="btn btn-primary" onclick="testDataSave()">Test Data Save</button>
+    <button class="btn btn-success" onclick="testDataSync()">Test Data Sync</button>
+    <button class="btn btn-danger" onclick="testDataValidation()">Test Data Validation</button>
+    <div class="log" id="dataLog"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>🌐 Cross-Tab Test</h2>
+    <p>Open this page in multiple tabs to test cross-tab synchronization</p>
+    <button class="btn btn-primary" onclick="testCrossTab()">Send Cross-Tab Event</button>
+    <button class="btn btn-success" onclick="simulateAdminUpdate()">Simulate Admin Update</button>
+    <div class="log" id="crossTabLog"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>📊 System Status</h2>
+    <button class="btn btn-primary" onclick="showSystemStatus()">Show System Status</button>
+    <button class="btn btn-success" onclick="testHeartbeat()">Test Heartbeat</button>
+    <div class="log" id="statusLog"></div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="js/data-manager.js"></script>
+<script src="js/realtime.js"></script>
+<script>
+
+// Test logging
+function log(elementId, message) {
+  const log = document.getElementById(elementId);
+  const timestamp = new Date().toLocaleTimeString();
+  log.innerHTML = `[${timestamp}] ${message}\n` + log.innerHTML;
+  
+  // Keep only last 50 lines
+  const lines = log.innerHTML.split('\n');
+  if (lines.length > 50) {
+    log.innerHTML = lines.slice(0, 50).join('\n');
+  }
+}
+
+// Update status bar
+function updateStatus() {
+  const status = window.RealTimeManager.getStatus();
+  document.getElementById('networkStatus').className = 
+    `status-item ${status.isOnline ? 'status-online' : 'status-offline'}`;
+  document.getElementById('networkStatus').textContent = 
+    status.isOnline ? '🌐 Online' : '📴 Offline';
+  document.getElementById('queueStatus').textContent = 
+    `📦 Queue: ${status.queueLength}`;
+}
+
+// Event Bus Test
+function testEventBus() {
+  log('eventLog', '🧪 Testing Event Bus...');
+  
+  // Test event emission
+  const eventId = window.RealTimeManager.emitEvent('test:event', {
+    message: 'Hello from Event Bus!',
+    timestamp: Date.now()
+  });
+  
+  log('eventLog', `✅ Event emitted: ${eventId}`);
+  
+  // Test event listening
+  window.RealTimeManager.on('test:event', (event) => {
+    log('eventLog', `📨 Event received: ${JSON.stringify(event.data)}`);
+  });
+}
+
+// Event Persistence Test
+function testEventPersistence() {
+  log('eventLog', '🧪 Testing Event Persistence...');
+  
+  // Emit multiple events
+  for (let i = 0; i < 5; i++) {
+    window.RealTimeManager.emitEvent('test:persistence', {
+      index: i,
+      message: `Persistence test ${i}`
+    });
+  }
+  
+  log('eventLog', '✅ 5 events emitted for persistence test');
+  
+  // Check localStorage
+  const events = JSON.parse(localStorage.getItem('rt_events') || '[]');
+  log('eventLog', `📦 Events in storage: ${events.length}`);
+}
+
+// Clear Events
+function clearEvents() {
+  localStorage.removeItem('rt_events');
+  log('eventLog', '🗑️ Events cleared from storage');
+}
+
+// Data Manager Test
+function testDataSave() {
+  log('dataLog', '🧪 Testing Data Save...');
+  
+  if (!window.DataManager) {
+    log('dataLog', '❌ DataManager not available');
+    return;
+  }
+  
+  const testData = {
+    subjects: [
+      {
+        id: 'test-subject',
+        name: 'Test Subject',
+        icon: '🧪',
+        description: 'Test subject for real-time system'
+      }
+    ]
+  };
+  
+  const success = window.DataManager.saveAdminData(testData);
+  log('dataLog', success ? '✅ Data saved successfully' : '❌ Data save failed');
+}
+
+// Data Sync Test
+function testDataSync() {
+  log('dataLog', '🧪 Testing Data Sync...');
+  
+  if (!window.DataManager) {
+    log('dataLog', '❌ DataManager not available');
+    return;
+  }
+  
+  window.DataManager.syncData().then(success => {
+    log('dataLog', success ? '✅ Data sync successful' : '❌ Data sync failed');
+  });
+}
+
+// Data Validation Test
+function testDataValidation() {
+  log('dataLog', '🧪 Testing Data Validation...');
+  
+  if (!window.DataManager) {
+    log('dataLog', '❌ DataManager not available');
+    return;
+  }
+  
+  // Test invalid data
+  const invalidData = { invalid: 'data' };
+  const result = window.DataManager.sanitizeData(invalidData);
+  
+  log('dataLog', `📝 Sanitized data: ${JSON.stringify(result)}`);
+}
+
+// Cross-Tab Test
+function testCrossTab() {
+  log('crossTabLog', '🧪 Testing Cross-Tab Communication...');
+  
+  const eventData = {
+    type: 'cross-tab-test',
+    message: 'Hello from other tab!',
+    timestamp: Date.now()
+  };
+  
+  window.RealTimeManager.emitEvent('test:cross-tab', eventData);
+  log('crossTabLog', '📨 Cross-tab event sent');
+}
+
+// Simulate Admin Update
+function simulateAdminUpdate() {
+  log('crossTabLog', '🧪 Simulating Admin Update...');
+  
+  const adminData = {
+    subjects: [
+      {
+        id: 'updated-subject',
+        name: 'Updated Subject',
+        icon: '🔄',
+        description: 'This subject was updated in real-time'
+      }
+    ]
+  };
+  
+  if (window.DataManager) {
+    window.DataManager.saveAdminData(adminData);
+    log('crossTabLog', '✅ Admin update simulated');
+  } else {
+    log('crossTabLog', '❌ DataManager not available');
+  }
+}
+
+// System Status
+function showSystemStatus() {
+  log('statusLog', '🧪 Getting System Status...');
+  
+  const rtStatus = window.RealTimeManager.getStatus();
+  log('statusLog', `📊 Real-Time Status: ${JSON.stringify(rtStatus, null, 2)}`);
+  
+  if (window.DataManager) {
+    const dmStatus = {
+      initialized: window.DataManager.initialized,
+      cacheSize: window.DataManager.cache ? Object.keys(window.DataManager.cache).length : 0,
+      listeners: window.DataManager.listeners.length
+    };
+    log('statusLog', `📊 Data Manager Status: ${JSON.stringify(dmStatus, null, 2)}`);
+  }
+}
+
+// Heartbeat Test
+function testHeartbeat() {
+  log('statusLog', '🧪 Testing Heartbeat System...');
+  
+  // Listen for heartbeat
+  window.RealTimeManager.on('system:heartbeat', (event) => {
+    log('statusLog', `💓 Heartbeat received: ${event.data.sessionId}`);
+  });
+  
+  // Manually trigger heartbeat
+  window.RealTimeManager.sendHeartbeat();
+  log('statusLog', '💓 Heartbeat sent');
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  log('eventLog', '🚀 Real-Time System Test Initialized');
+  log('dataLog', '🚀 Data Manager Test Initialized');
+  log('crossTabLog', '🚀 Cross-Tab Test Initialized');
+  log('statusLog', '🚀 System Status Test Initialized');
+  
+  // Update status every 2 seconds
+  setInterval(updateStatus, 2000);
+  updateStatus();
+  
+  // Listen for all events for debugging
+  window.RealTimeManager.on('*', (event) => {
+    if (event.type !== 'system:heartbeat') {
+      log('eventLog', `📨 Event: ${event.type}`);
+    }
+  });
+});
+
+</script>
+</body>
+</html>

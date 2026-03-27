@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en-GB" data-mode="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Class 10Edu — Premium Class 10 CBSE/NCERT learning app. Videos, notes, quizzes, sample papers, bookmarks and study planner.">
+<title>Class 10Edu — Class 10 Learning</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<main class="cinema-page">
+  <section class="hero-page cinema-hero">
+    <div class="blob blob-1 parallax-layer" data-depth="0.12"></div>
+    <div class="blob blob-2 parallax-layer" data-depth="0.18"></div>
+    <div class="blob blob-3 parallax-layer" data-depth="0.24"></div>
+    <div class="hero-vignette"></div>
+
+    <div class="cinema-shell">
+      <div class="hero-badge au">✦ Class 10 · CBSE · NCERT ✦</div>
+      <h1 class="hero-title au-1">
+        Study Like a Story.<br>
+        <span class="grad">Score Like a Pro.</span>
+      </h1>
+      <p class="hero-sub au-2">
+        A cinematic learning workspace for Class 10 students: one focused path from confusion to confidence.
+      </p>
+      <div class="hero-btns au-3">
+        <a href="dashboard.html" class="btn btn-b btn-lg" id="heroStart">Start Your Journey →</a>
+        <a href="sample-papers.html" class="btn btn-gh btn-lg">🏆 Sample Papers</a>
+        <button class="btn btn-gh btn-lg" id="soundToggle" type="button">🔈 Sound Off</button>
+      </div>
+      <div class="hero-scroll-cue">Scroll to continue ↓</div>
+    </div>
+  </section>
+
+  <section class="cinema-section reveal">
+    <div class="cinema-shell">
+      <p class="scene-kicker">The Problem</p>
+      <h2 class="scene-title">Too many tabs. Too much noise.</h2>
+      <p class="scene-copy">Most students waste time switching between videos, notes, and PDFs. Focus breaks. Retention drops.</p>
+    </div>
+  </section>
+
+  <section class="cinema-section reveal">
+    <div class="cinema-shell">
+      <p class="scene-kicker">The Solution</p>
+      <h2 class="scene-title">One flow. One subject. One clear next step.</h2>
+      <div class="cinema-grid">
+        <div class="feat-card zoom-card"><div class="feat-ico">🎬</div><div class="feat-title">Lesson-first flow</div><div class="feat-desc">Teacher → content type → focused learning screen.</div></div>
+        <div class="feat-card zoom-card"><div class="feat-ico">🧠</div><div class="feat-title">Smart quiz loop</div><div class="feat-desc">Practice, feedback, score tracking, and retry.</div></div>
+        <div class="feat-card zoom-card"><div class="feat-ico">📁</div><div class="feat-title">Resources in context</div><div class="feat-desc">Notes, PDFs, PYQs and mindmaps inside chapters.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cinema-section reveal">
+    <div class="cinema-shell">
+      <p class="scene-kicker">Proof</p>
+      <h2 class="scene-title">Everything needed for board readiness.</h2>
+      <div class="cinema-proof">
+        <div class="proof-item"><strong>4</strong><span>Core subjects</span></div>
+        <div class="proof-item"><strong>Role-based</strong><span>Onboarding flow</span></div>
+        <div class="proof-item"><strong>Admin CMS</strong><span>Editable all content</span></div>
+        <div class="proof-item"><strong>Planner</strong><span>Tasks + bookmarks</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cinema-section cinema-climax reveal">
+    <div class="cinema-shell">
+      <p class="scene-kicker">Climax</p>
+      <h2 class="scene-title">Your next chapter starts now.</h2>
+      <p class="scene-copy">Join Class 10Edu and turn daily study into a smooth, high-focus routine.</p>
+      <div class="hero-btns">
+        <a href="dashboard.html" class="btn btn-b btn-lg" id="heroStartBottom">Enter Dashboard →</a>
+        <a href="teachers.html" class="btn btn-gh btn-lg">👨‍🏫 Meet Teachers</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="js/data-manager.js"></script>
+<script src="js/realtime.js"></script>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+<script>
+App.applyMode();
+
+// Show onboarding if first visit, else go straight to dashboard on CTA click
+function withOnboarding(e){
+  if (!App.hasProfile()) {
+    e.preventDefault();
+    App.showOnboarding(() => { location.href = 'dashboard.html'; });
+  }
+}
+document.getElementById('heroStart').addEventListener('click', withOnboarding);
+document.getElementById('heroStartBottom').addEventListener('click', withOnboarding);
+
+// Dark/light toggle on hero — optional shortcut
+document.addEventListener('keydown', e => {
+  if (e.key === 'd' && e.altKey) App.toggleMode();
+});
+
+// Progressive reveal pacing
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting) entry.target.classList.add('in');
+  });
+},{threshold:.18});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+// Lightweight parallax (no heavy libs)
+const parallax = document.querySelectorAll('.parallax-layer');
+let ticking = false;
+window.addEventListener('scroll', ()=>{
+  if(ticking) return;
+  ticking = true;
+  requestAnimationFrame(()=>{
+    const y = window.scrollY || 0;
+    parallax.forEach(el=>{
+      const depth = parseFloat(el.dataset.depth || '0.12');
+      el.style.transform = `translate3d(0, ${Math.round(y*depth)}px, 0) scale(1.02)`;
+    });
+    ticking = false;
+  });
+},{passive:true});
+
+// Optional micro-sound feedback (muted by default)
+let soundOn = false;
+let ctx = null;
+const soundBtn = document.getElementById('soundToggle');
+soundBtn.addEventListener('click', ()=>{
+  soundOn = !soundOn;
+  soundBtn.textContent = soundOn ? '🔊 Sound On' : '🔈 Sound Off';
+});
+document.body.addEventListener('pointerdown', (e)=>{
+  if(!soundOn) return;
+  if(!e.target.closest('.btn')) return;
+  try{
+    ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.type = 'triangle'; o.frequency.value = 520;
+    g.gain.value = 0.0001;
+    o.connect(g); g.connect(ctx.destination);
+    const t = ctx.currentTime;
+    g.gain.exponentialRampToValueAtTime(0.03, t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+0.09);
+    o.start(t); o.stop(t+0.1);
+  }catch{}
+});
+</script>
+<script src="js/music.js"></script>
+</body>
+</html>

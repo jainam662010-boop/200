@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Chapter — Class 10Edu</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/mobile.css">
+<style>
+/* Chapter-specific styles */
+.recommend-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.rec-card { background:var(--bg3); border:1px solid var(--bdr); border-radius:var(--r); padding:12px 14px; text-decoration:none; color:inherit; display:block; transition:all .15s; min-height:64px; }
+.rec-card:hover, .rec-card:focus { border-color:var(--bdr2); background:rgba(var(--br),.07); }
+.rec-title { font-size:.82rem; font-weight:700; color:var(--t1); margin-bottom:4px; line-height:1.3; }
+.rec-sub   { font-size:.71rem; color:var(--t3); }
+@media(max-width:480px) { .recommend-grid { grid-template-columns:1fr; } }
+
+/* lesson rows need big tap area */
+.lesson-row { cursor:pointer; }
+.lesson-row:active { background:rgba(var(--br),.12); }
+
+/* Video embed safe */
+.vid-embed { position:relative; width:100%; padding-bottom:56.25%; background:#000; overflow:hidden; }
+.vid-embed iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:none; }
+
+/* Sticky video on scroll for desktop */
+@media(min-width:900px) {
+  .vid-sticky { position:sticky; top:calc(var(--nav-h) + 8px); }
+}
+
+/* Content tabs */
+.content-tabs { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--bdr); }
+.content-tab { padding:10px 16px; border:none; background:transparent; color:var(--t3); font-weight:600; font-size:.85rem; cursor:pointer; border-bottom:2px solid transparent; transition:all .15s; }
+.content-tab:hover { color:var(--t1); }
+.content-tab.active { color:var(--bl); border-bottom-color:var(--bl); }
+
+/* Content sections */
+.content-section { display:none; }
+.content-section.active { display:block; }
+
+/* Video player */
+.video-player { background:#000; border-radius:var(--r); overflow:hidden; margin-bottom:16px; }
+.video-placeholder { display:flex; align-items:center; justify-content:center; height:200px; background:linear-gradient(135deg,var(--bg2),var(--bg3)); color:var(--t3); font-size:1.2rem; border-radius:var(--r); }
+
+/* Notes viewer */
+.notes-viewer { background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--r); padding:16px; }
+.notes-content { line-height:1.6; color:var(--t1); }
+
+/* Quiz section */
+.quiz-question { background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--r); padding:16px; margin-bottom:12px; }
+.quiz-options { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.quiz-option { padding:12px; border:1px solid var(--bdr); border-radius:var(--r); cursor:pointer; transition:all .15s; }
+.quiz-option:hover { border-color:var(--bdr2); background:rgba(var(--br),.05); }
+.quiz-option.selected { border-color:var(--bl); background:rgba(var(--br),.1); }
+.quiz-option.correct { border-color:#10b981; background:rgba(16,185,129,0.1); }
+.quiz-option.incorrect { border-color:#ef4444; background:rgba(239,68,68,0.1); }
+
+/* Progress indicator */
+.chapter-progress { background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--r); padding:16px; margin-bottom:16px; }
+.progress-items { display:flex; justify-content:space-between; margin-top:12px; }
+.progress-item { text-align:center; }
+.progress-dot { width:12px; height:12px; border-radius:50%; background:var(--bdr); margin:0 auto 4px; }
+.progress-dot.completed { background:#10b981; }
+.progress-dot.current { background:var(--bl); }
+</style>
+</head>
+<body>
+<div id="nb"></div>
+<div class="page-layout">
+  <div id="sb"></div>
+  <main class="main-area" id="mainArea">
+    <div style="display:flex;align-items:center;justify-content:center;padding:80px 0">
+      <div class="spinner"></div>
+    </div>
+  </main>
+</div>
+<div id="bottomNav"></div>
+<div class="page-watermark"></div>
+
+<!-- Scripts -->
+<script src="js/data-manager.js"></script>
+<script src="js/realtime.js"></script>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+
+<script>
+// Chapter page rendering logic
+const ChapterPage = {
+  currentChapter: null,
+  currentSubject: null,
+  currentTab: 'lessons',
+  videoPlayer: null,
+
+  async render() {
+    try {
+      console.log('📖 Rendering chapter page...');
+      
+      // Get parameters
+      const subjectId = App.getParam('subject');
+      const chapterId = App.getParam('chapter');
+      
+      if (!subjectId || !chapterId) {
+        throw new Error('Missing subject or chapter ID');
+      }
+      
+      // Load data
+      const subject = await App.getSubject(subjectId);
+      const chapter = await App.getChapter(subjectId, chapterId);
+      
+      if (!subject || !chapter) {
+        throw new Error('Subject or chapter not found');
+      }
+      
+      this.currentSubject = subject;
+      this.currentChapter = chapter;
+      
+      // Load progress
+      const progress = App.getProgress();
+      const isCompleted = App.isDone(subjectId, chapterId);
+      const isBookmarked = App.isBookmarked(subjectId, chapterId);
+      
+      // Render page
+      const main = document.getElementById('mainArea');
+      main.innerHTML = `
+        <!-- Mobile-First Chapter Page -->
+        <div class="chapter-page page-animate">
+          
+          <!-- Chapter Header -->
+          <div class="chapter-header">
+            <div class="chapter-breadcrumb">
+              <a href="subjects.html" class="breadcrumb-link">Subjects</a>
+              <span class="breadcrumb-separator">›</span>
+              <a href="subject.html?id=${subjectId}" class="breadcrumb-link">${VidyaSec.sanitize(subject.name)}</a>
+              <span class="breadcrumb-separator">›</span>
+              <span class="breadcrumb-current">Chapter ${chapterId}</span>
+            </div>
+            
+            <div class="chapter-title-section">
+              <h1>${VidyaSec.sanitize(chapter.title)}</h1>
+              <div class="chapter-meta">
+                <span class="chapter-duration">⏱️ ${chapter.duration || '30 min'}</span>
+                <span class="chapter-status">
+                  ${isCompleted ? '✅ Completed' : '📚 In Progress'}
+                </span>
+                <button class="bookmark-btn ${isBookmarked ? 'active' : ''}" 
+                        onclick="ChapterPage.toggleBookmark()">
+                  ${isBookmarked ? '🔖' : '📌'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chapter Progress -->
+          <div class="chapter-progress">
+            <h3>📊 Chapter Progress</h3>
+            <div class="progress-items">
+              <div class="progress-item">
+                <div class="progress-dot ${this.hasCompletedLessons() ? 'completed' : ''}"></div>
+                <span>Lessons</span>
+              </div>
+              <div class="progress-item">
+                <div class="progress-dot ${this.hasCompletedNotes() ? 'completed' : ''}"></div>
+                <span>Notes</span>
+              </div>
+              <div class="progress-item">
+                <div class="progress-dot ${this.hasCompletedQuiz() ? 'completed' : ''}"></div>
+                <span>Quiz</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Content Tabs -->
+          <div class="content-tabs">
+            <button class="content-tab ${this.currentTab === 'lessons' ? 'active' : ''}" 
+                    data-tab="lessons" onclick="ChapterPage.switchTab('lessons')">
+              📹 Lessons (${chapter.lessons?.length || 0})
+            </button>
+            <button class="content-tab ${this.currentTab === 'notes' ? 'active' : ''}" 
+                    data-tab="notes" onclick="ChapterPage.switchTab('notes')">
+              📄 Notes (${chapter.notes?.length || 0})
+            </button>
+            <button class="content-tab ${this.currentTab === 'quiz' ? 'active' : ''}" 
+                    data-tab="quiz" onclick="ChapterPage.switchTab('quiz')">
+              📝 Quiz ${chapter.quiz ? '(1)' : '(0)'}
+            </button>
+            <button class="content-tab ${this.currentTab === 'ncert' ? 'active' : ''}" 
+                    data-tab="ncert" onclick="ChapterPage.switchTab('ncert')">
+              📖 NCERT (${chapter.ncertTopics?.length || 0})
+            </button>
+          </div>
+
+          <!-- Content Sections -->
+          <div class="content-section ${this.currentTab === 'lessons' ? 'active' : ''}" id="lessons-section">
+            ${this.renderLessons(chapter.lessons || [])}
+          </div>
+
+          <div class="content-section ${this.currentTab === 'notes' ? 'active' : ''}" id="notes-section">
+            ${this.renderNotes(chapter.notes || [])}
+          </div>
+
+          <div class="content-section ${this.currentTab === 'quiz' ? 'active' : ''}" id="quiz-section">
+            ${this.renderQuiz(chapter.quiz)}
+          </div>
+
+          <div class="content-section ${this.currentTab === 'ncert' ? 'active' : ''}" id="ncert-section">
+            ${this.renderNCERT(chapter.ncertTopics || [])}
+          </div>
+
+          <!-- Recommendations -->
+          <div class="recommendations-section">
+            <h3>🎯 Continue Learning</h3>
+            <div class="recommend-grid">
+              ${this.renderRecommendations(subject, chapter)}
+            </div>
+          </div>
+
+          <!-- Complete Chapter Button -->
+          ${!isCompleted ? `
+            <div class="complete-section">
+              <button class="btn btn-b" onclick="ChapterPage.markAsComplete()">
+                ✅ Mark Chapter as Complete
+              </button>
+            </div>
+          ` : `
+            <div class="complete-section">
+              <button class="btn btn-s btn-outline" onclick="ChapterPage.markAsIncomplete()">
+                📚 Mark as In Progress
+              </button>
+            </div>
+          `}
+
+        </div>
+      `;
+      
+      // Initialize video player if lessons exist
+      if (chapter.lessons && chapter.lessons.length > 0) {
+        this.initializeVideoPlayer(chapter.lessons[0]);
+      }
+      
+      // Apply theme
+      App.applyMode();
+      
+      // Initialize real-time sync
+      App.initRealTimeSync();
+      
+      console.log('✅ Chapter page rendered successfully');
+      
+    } catch (error) {
+      console.error('❌ Chapter page render failed:', error);
+      App.toast('Failed to load chapter', '❌');
+      
+      // Show error state
+      const main = document.getElementById('mainArea');
+      main.innerHTML = `
+        <div class="error-state">
+          <div class="error-icon">😔</div>
+          <h2>Chapter Not Found</h2>
+          <p>We couldn't find the chapter you're looking for.</p>
+          <button class="btn btn-b" onclick="history.back()">Go Back</button>
+        </div>
+      `;
+    }
+  },
+
+  // Render lessons section
+  renderLessons(lessons) {
+    if (!lessons || lessons.length === 0) {
+      return '<div class="empty-state">No lessons available for this chapter.</div>';
+    }
+    
+    return `
+      <div class="lessons-container">
+        ${lessons.map((lesson, index) => `
+          <div class="lesson-row touchable" onclick="ChapterPage.playLesson(${index})">
+            <div class="lesson-number">${index + 1}</div>
+            <div class="lesson-info">
+              <h4 class="lesson-title">${VidyaSec.sanitize(lesson.title)}</h4>
+              <p class="lesson-duration">⏱️ ${lesson.duration || '15 min'}</p>
+            </div>
+            <div class="lesson-action">
+              <button class="btn btn-s">▶️ Play</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      
+      <!-- Video Player -->
+      <div class="video-player vid-sticky" id="videoPlayer">
+        <div class="video-placeholder">
+          📹 Select a lesson to start watching
+        </div>
+      </div>
+    `;
+  },
+
+  // Render notes section
+  renderNotes(notes) {
+    if (!notes || notes.length === 0) {
+      return '<div class="empty-state">No notes available for this chapter.</div>';
+    }
+    
+    return `
+      <div class="notes-viewer">
+        ${notes.map((note, index) => `
+          <div class="note-item">
+            <h4 class="note-title">${VidyaSec.sanitize(note.title)}</h4>
+            <div class="note-content">
+              ${note.content ? VidyaSec.sanitize(note.content) : 
+                note.pdfUrl ? `
+                  <div class="pdf-viewer">
+                    <iframe src="${note.pdfUrl}" width="100%" height="600px"></iframe>
+                  </div>
+                ` : 'No content available'}
+            </div>
+            ${note.pdfUrl ? `
+              <button class="btn btn-s" onclick="ChapterPage.downloadPDF('${note.pdfUrl}')">
+                📄 Download PDF
+              </button>
+            ` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `;
+  },
+
+  // Render quiz section
+  renderQuiz(quiz) {
+    if (!quiz) {
+      return '<div class="empty-state">No quiz available for this chapter.</div>';
+    }
+    
+    return `
+      <div class="quiz-container">
+        <div class="quiz-header">
+          <h3>📝 Chapter Quiz</h3>
+          <p>Test your understanding of this chapter</p>
+        </div>
+        
+        ${quiz.questions.map((question, qIndex) => `
+          <div class="quiz-question" id="question-${qIndex}">
+            <h4>Question ${qIndex + 1}</h4>
+            <p class="question-text">${VidyaSec.sanitize(question.question)}</p>
+            <div class="quiz-options">
+              ${question.options.map((option, oIndex) => `
+                <div class="quiz-option" data-question="${qIndex}" data-option="${oIndex}"
+                     onclick="ChapterPage.selectAnswer(${qIndex}, ${oIndex})">
+                  ${String.fromCharCode(65 + oIndex)}. ${VidyaSec.sanitize(option)}
+                </div>
+              `).join('')}
+            </div>
+            <div class="quiz-feedback" id="feedback-${qIndex}"></div>
+          </div>
+        `).join('')}
+        
+        <div class="quiz-actions">
+          <button class="btn btn-b" onclick="ChapterPage.submitQuiz()">
+            📤 Submit Quiz
+          </button>
+          <button class="btn btn-s btn-outline" onclick="ChapterPage.resetQuiz()">
+            🔄 Reset Answers
+          </button>
+        </div>
+        
+        <div class="quiz-results" id="quizResults"></div>
+      </div>
+    `;
+  },
+
+  // Render NCERT topics
+  renderNCERT(topics) {
+    if (!topics || topics.length === 0) {
+      return '<div class="empty-state">No NCERT topics available for this chapter.</div>';
+    }
+    
+    return `
+      <div class="ncert-container">
+        <h3>📖 NCERT Topics</h3>
+        <div class="ncert-topics">
+          ${topics.map(topic => `
+            <div class="ncert-topic">
+              <h4 class="topic-title">${VidyaSec.sanitize(topic.title)}</h4>
+              <p class="topic-description">${VidyaSec.sanitize(topic.description || '')}</p>
+              ${topic.exercise ? `
+                <div class="topic-exercise">
+                  <h5>Exercise ${topic.exercise}</h5>
+                  <p>Complete this exercise from your NCERT textbook</p>
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  },
+
+  // Render recommendations
+  renderRecommendations(subject, currentChapter) {
+    const recommendations = [];
+    
+    // Add next chapter
+    const chapters = subject.chapters || [];
+    const currentIndex = chapters.findIndex(ch => ch.id === currentChapter.id);
+    
+    if (currentIndex < chapters.length - 1) {
+      const nextChapter = chapters[currentIndex + 1];
+      recommendations.push({
+        title: `Chapter ${nextChapter.id}: ${nextChapter.title}`,
+        subtitle: 'Next chapter in this subject',
+        href: `chapter.html?subject=${subject.id}&chapter=${nextChapter.id}`,
+        icon: '➡️'
+      });
+    }
+    
+    // Add related subjects
+    const allSubjects = window.DataManager?.cache?.subjects || [];
+    const otherSubjects = allSubjects.filter(s => s.id !== subject.id).slice(0, 2);
+    
+    otherSubjects.forEach(otherSubject => {
+      recommendations.push({
+        title: otherSubject.name,
+        subtitle: 'Explore this subject',
+        href: `subject.html?id=${otherSubject.id}`,
+        icon: otherSubject.icon
+      });
+    });
+    
+    return recommendations.map(rec => `
+      <a href="${rec.href}" class="rec-card">
+        <div class="rec-title">${rec.icon} ${VidyaSec.sanitize(rec.title)}</div>
+        <div class="rec-sub">${VidyaSec.sanitize(rec.subtitle)}</div>
+      </a>
+    `).join('');
+  },
+
+  // Switch content tab
+  switchTab(tabName) {
+    this.currentTab = tabName;
+    
+    // Update tab buttons
+    document.querySelectorAll('.content-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.tab === tabName);
+    });
+    
+    // Update content sections
+    document.querySelectorAll('.content-section').forEach(section => {
+      section.classList.toggle('active', section.id === `${tabName}-section`);
+    });
+  },
+
+  // Toggle bookmark
+  toggleBookmark() {
+    const isBookmarked = App.toggleBookmark(this.currentSubject.id, this.currentChapter.id);
+    const bookmarkBtn = document.querySelector('.bookmark-btn');
+    bookmarkBtn.className = `bookmark-btn ${isBookmarked ? 'active' : ''}`;
+    bookmarkBtn.textContent = isBookmarked ? '🔖' : '📌';
+    
+    App.toast(isBookmarked ? 'Chapter bookmarked' : 'Bookmark removed', 
+             isBookmarked ? '🔖' : '📌');
+  },
+
+  // Initialize video player
+  initializeVideoPlayer(lesson) {
+    const videoPlayer = document.getElementById('videoPlayer');
+    if (!videoPlayer || !lesson) return;
+    
+    // For now, show placeholder
+    videoPlayer.innerHTML = `
+      <div class="video-placeholder">
+        📹 ${VidyaSec.sanitize(lesson.title)}
+        <br>
+        <small>Video player would be embedded here</small>
+      </div>
+    `;
+  },
+
+  // Play lesson
+  playLesson(index) {
+    const lessons = this.currentChapter.lessons || [];
+    if (index >= 0 && index < lessons.length) {
+      this.initializeVideoPlayer(lessons[index]);
+      App.toast(`Playing: ${lessons[index].title}`, '📹');
+    }
+  },
+
+  // Mark chapter as complete
+  markAsComplete() {
+    const success = App.markDone(this.currentSubject.id, this.currentChapter.id);
+    if (success) {
+      App.toast('Chapter marked as complete! 🎉', '✅');
+      this.render(); // Re-render to update UI
+    }
+  },
+
+  // Mark chapter as incomplete
+  markAsIncomplete() {
+    // This would require extending the App API
+    App.toast('Chapter marked as in progress', '📚');
+    this.render(); // Re-render to update UI
+  },
+
+  // Quiz functionality
+  selectAnswer(questionIndex, optionIndex) {
+    const options = document.querySelectorAll(`[data-question="${questionIndex}"]`);
+    options.forEach(opt => opt.classList.remove('selected'));
+    
+    const selectedOption = document.querySelector(`[data-question="${questionIndex}"][data-option="${optionIndex}"]`);
+    selectedOption.classList.add('selected');
+  },
+
+  submitQuiz() {
+    const quiz = this.currentChapter.quiz;
+    if (!quiz) return;
+    
+    let score = 0;
+    const total = quiz.questions.length;
+    
+    quiz.questions.forEach((question, qIndex) => {
+      const selectedOption = document.querySelector(`[data-question="${qIndex}"].selected`);
+      if (selectedOption) {
+        const answerIndex = parseInt(selectedOption.dataset.option);
+        const isCorrect = answerIndex === question.answer;
+        
+        selectedOption.classList.add(isCorrect ? 'correct' : 'incorrect');
+        
+        if (isCorrect) score++;
+        
+        // Show feedback
+        const feedback = document.getElementById(`feedback-${qIndex}`);
+        feedback.innerHTML = isCorrect ? 
+          '✅ Correct!' : 
+          `❌ Incorrect. The correct answer is ${String.fromCharCode(65 + question.answer)}`;
+      }
+    });
+    
+    // Show results
+    const percentage = Math.round((score / total) * 100);
+    const resultsDiv = document.getElementById('quizResults');
+    resultsDiv.innerHTML = `
+      <div class="quiz-score">
+        <h3>📊 Quiz Results</h3>
+        <p>You scored ${score}/${total} (${percentage}%)</p>
+        ${percentage >= 70 ? '🎉 Great job!' : '📚 Keep practicing!'}
+      </div>
+    `;
+    
+    // Save score to progress
+    this.saveQuizScore(percentage);
+  },
+
+  resetQuiz() {
+    document.querySelectorAll('.quiz-option').forEach(opt => {
+      opt.classList.remove('selected', 'correct', 'incorrect');
+    });
+    document.querySelectorAll('.quiz-feedback').forEach(feedback => {
+      feedback.innerHTML = '';
+    });
+    document.getElementById('quizResults').innerHTML = '';
+  },
+
+  saveQuizScore(score) {
+    // This would save the quiz score to the progress
+    App.toast(`Quiz score: ${score}%`, '📝');
+  },
+
+  // Download PDF
+  downloadPDF(url) {
+    window.open(url, '_blank');
+  },
+
+  // Progress checks
+  hasCompletedLessons() {
+    // Mock implementation - would check actual progress
+    return true;
+  },
+
+  hasCompletedNotes() {
+    // Mock implementation - would check actual progress
+    return true;
+  },
+
+  hasCompletedQuiz() {
+    // Mock implementation - would check actual progress
+    return false;
+  },
+
+  // Refresh page with new data
+  async refresh() {
+    console.log('🔄 Refreshing chapter page...');
+    await this.render();
+    App.toast('Chapter updated', '🔄');
+  }
+};
+
+// Initialize chapter page when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // Initialize app
+    await App.init();
+    
+    // Check authentication
+    if (!App.hasProfile()) {
+      location.href = 'dashboard.html';
+      return;
+    }
+    
+    // Initialize page
+    App.initPage('chapter');
+    App.renderBottomNav('subjects');
+    
+    // Render chapter
+    await ChapterPage.render();
+    
+    // Setup page-specific refresh
+    App.refreshCurrentPage = () => ChapterPage.refresh();
+    
+  } catch (error) {
+    console.error('❌ Chapter page initialization failed:', error);
+    App.toast('Page initialization failed', '❌');
+  }
+});
+</script>
+
+</body>
+</html>

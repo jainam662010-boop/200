@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Subject — Class 10Edu</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/mobile.css">
+<style>
+.subj-hero{background:linear-gradient(135deg,rgba(var(--br),.16) 0%,rgba(var(--br),.04) 100%);border:1px solid var(--bdr2);border-radius:var(--rl);padding:24px 26px;margin-bottom:22px;position:relative;overflow:hidden}
+.subj-hero::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--sh-g,linear-gradient(90deg,var(--b),var(--a)))}
+.topic-filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tf-btn{padding:5px 14px;border-radius:99px;font-size:.78rem;font-weight:700;border:1px solid var(--bdr);background:transparent;color:var(--t3);cursor:pointer;transition:all .15s}
+.tf-btn:hover{border-color:var(--bdr2);color:var(--t1)}
+.tf-btn.on{background:rgba(var(--br),.14);color:var(--bl);border-color:rgba(var(--br),.3)}
+</style>
+</head>
+<body>
+<div id="nb"></div>
+<div class="page-layout">
+  <div id="sb"></div>
+  <main class="main-area" id="mainArea">
+    <div style="display:flex;align-items:center;justify-content:center;padding:80px 0">
+      <div class="spinner"></div>
+    </div>
+  </main>
+</div>
+<div id="bottomNav"></div>
+<div class="page-watermark"></div>
+
+<!-- Scripts -->
+<script src="js/data-manager.js"></script>
+<script src="js/realtime.js"></script>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+
+<script>
+// Subject page rendering logic
+const SubjectPage = {
+  currentSubject: null,
+  currentFilter: 'all',
+
+  async render() {
+    try {
+      console.log('📖 Rendering subject page...');
+      
+      // Get subject ID from URL
+      const subjectId = App.getParam('id');
+      if (!subjectId) {
+        throw new Error('No subject ID provided');
+      }
+      
+      // Load subject data
+      const subject = await App.getSubject(subjectId);
+      if (!subject) {
+        throw new Error('Subject not found');
+      }
+      
+      this.currentSubject = subject;
+      
+      // Load progress and bookmarks
+      const progress = App.getProgress();
+      const bookmarks = App.getBookmarks();
+      
+      // Calculate subject statistics
+      const stats = this.calculateSubjectStats(subject, progress);
+      
+      // Render page
+      const main = document.getElementById('mainArea');
+      main.innerHTML = `
+        <!-- Mobile-First Subject Page -->
+        <div class="subject-page page-animate">
+          
+          <!-- Subject Hero -->
+          <div class="subj-hero">
+            <div class="subject-header">
+              <div class="subject-icon-large" style="background: ${subject.gradient || subject.bg}; color: ${subject.color};">
+                ${subject.icon}
+              </div>
+              <div class="subject-info">
+                <h1>${VidyaSec.sanitize(subject.name)}</h1>
+                <p class="subject-description">${VidyaSec.sanitize(subject.description || '')}</p>
+              </div>
+            </div>
+            
+            <div class="subject-progress-overview">
+              <div class="progress-circle">
+                <div class="progress-ring">
+                  <svg width="60" height="60">
+                    <circle cx="30" cy="30" r="25" stroke="var(--bdr2)" stroke-width="4" fill="none"/>
+                    <circle cx="30" cy="30" r="25" stroke="${subject.color || '#6C63FF'}" stroke-width="4" fill="none"
+                            stroke-dasharray="${stats.progressCircumference}" 
+                            stroke-dashoffset="${stats.progressOffset}"
+                            transform="rotate(-90 30 30)"/>
+                  </svg>
+                  <div class="progress-text">${stats.percentage}%</div>
+                </div>
+              </div>
+              <div class="progress-details">
+                <div class="progress-item">
+                  <span class="label">Completed</span>
+                  <span class="value">${stats.completed}/${stats.total}</span>
+                </div>
+                <div class="progress-item">
+                  <span class="label">Quiz Average</span>
+                  <span class="value">${stats.quizAverage}%</span>
+                </div>
+                <div class="progress-item">
+                  <span class="label">Study Time</span>
+                  <span class="value">${stats.studyTime}h</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Topic Filter -->
+          <div class="topic-filter">
+            <button class="tf-btn ${this.currentFilter === 'all' ? 'on' : ''}" data-filter="all">
+              All Chapters (${stats.total})
+            </button>
+            <button class="tf-btn ${this.currentFilter === 'completed' ? 'on' : ''}" data-filter="completed">
+              Completed (${stats.completed})
+            </button>
+            <button class="tf-btn ${this.currentFilter === 'bookmarked' ? 'on' : ''}" data-filter="bookmarked">
+              Bookmarked (${stats.bookmarked})
+            </button>
+            <button class="tf-btn ${this.currentFilter === 'in-progress' ? 'on' : ''}" data-filter="in-progress">
+              In Progress (${stats.inProgress})
+            </button>
+          </div>
+
+          <!-- Chapters List -->
+          <div class="chapters-list" id="chaptersList">
+            ${subject.chapters.map(chapter => {
+              const isCompleted = App.isDone(subject.id, chapter.id);
+              const isBookmarked = App.isBookmarked(subject.id, chapter.id);
+              const isInProgress = !isCompleted && this.hasStartedChapter(subject.id, chapter.id, progress);
+              
+              const shouldShow = this.shouldShowChapter(this.currentFilter, isCompleted, isBookmarked, isInProgress);
+              if (!shouldShow) return '';
+              
+              return `
+                <div class="chapter-card-mobile touchable" 
+                     data-chapter-id="${chapter.id}"
+                     onclick="location.href='chapter.html?subject=${subject.id}&chapter=${chapter.id}'">
+                  
+                  <div class="chapter-header">
+                    <div class="chapter-number">${chapter.id}</div>
+                    <div class="chapter-info">
+                      <h3 class="chapter-title">${VidyaSec.sanitize(chapter.title)}</h3>
+                      <p class="chapter-duration">⏱️ ${chapter.duration || '30 min'}</p>
+                    </div>
+                    <div class="chapter-actions">
+                      ${isBookmarked ? 
+                        '<span class="bookmark-icon active">🔖</span>' : 
+                        '<span class="bookmark-icon">📌</span>'
+                      }
+                    </div>
+                  </div>
+
+                  <div class="chapter-content-preview">
+                    <div class="content-count">
+                      <span class="content-type">📹 ${chapter.lessons?.length || 0} Videos</span>
+                      <span class="content-type">📄 ${chapter.notes?.length || 0} Notes</span>
+                      <span class="content-type">📝 ${chapter.quiz ? '1 Quiz' : '0 Quiz'}</span>
+                    </div>
+                  </div>
+
+                  <div class="chapter-progress">
+                    <div class="progress-row">
+                      <span class="progress-status">
+                        ${isCompleted ? '✅ Completed' : 
+                          isInProgress ? '📚 In Progress' : 
+                          '🆕 Not Started'}
+                      </span>
+                      ${isCompleted ? 
+                        '<button class="btn btn-s btn-outline">Review</button>' : 
+                        '<button class="btn btn-s">Start →</button>'
+                      }
+                    </div>
+                  </div>
+
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Study Resources -->
+          <div class="study-resources-card">
+            <h3>📚 Study Resources</h3>
+            <div class="resources-grid">
+              <a href="#" class="resource-item">
+                <span class="resource-icon">📖</span>
+                <span class="resource-name">NCERT Textbook</span>
+              </a>
+              <a href="#" class="resource-item">
+                <span class="resource-icon">📝</span>
+                <span class="resource-name">Sample Papers</span>
+              </a>
+              <a href="#" class="resource-item">
+                <span class="resource-icon">🔬</span>
+                <span class="resource-name">Experiments</span>
+              </a>
+              <a href="#" class="resource-item">
+                <span class="resource-icon">🎯</span>
+                <span class="resource-name">Practice Tests</span>
+              </a>
+            </div>
+          </div>
+
+        </div>
+      `;
+      
+      // Setup filter functionality
+      this.setupFilterTabs();
+      
+      // Setup bookmark toggles
+      this.setupBookmarkToggles();
+      
+      // Apply theme
+      App.applyMode();
+      
+      // Initialize real-time sync
+      App.initRealTimeSync();
+      
+      console.log('✅ Subject page rendered successfully');
+      
+    } catch (error) {
+      console.error('❌ Subject page render failed:', error);
+      App.toast('Failed to load subject', '❌');
+      
+      // Show error state
+      const main = document.getElementById('mainArea');
+      main.innerHTML = `
+        <div class="error-state">
+          <div class="error-icon">😔</div>
+          <h2>Subject Not Found</h2>
+          <p>We couldn't find the subject you're looking for.</p>
+          <button class="btn btn-b" onclick="location.href='subjects.html'">Back to Subjects</button>
+        </div>
+      `;
+    }
+  },
+
+  // Calculate subject statistics
+  calculateSubjectStats(subject, progress) {
+    const total = subject.chapters?.length || 0;
+    const subjectProgress = progress[subject.id] || {};
+    const completed = (subjectProgress.done || []).length;
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    // Calculate quiz average
+    const scores = subjectProgress.scores || {};
+    const quizScores = Object.values(scores).map(s => s.pct || 0);
+    const quizAverage = quizScores.length > 0 ? 
+      Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length) : 0;
+    
+    // Calculate bookmarks
+    const bookmarks = App.getBookmarks();
+    const bookmarked = bookmarks.filter(b => b.startsWith(`${subject.id}::`)).length;
+    
+    // Calculate in progress
+    const inProgress = total - completed;
+    
+    // Calculate study time (mock data)
+    const studyTime = Math.round(completed * 0.5); // 30 minutes per chapter
+    
+    // Progress circle calculations
+    const progressCircumference = 2 * Math.PI * 25;
+    const progressOffset = progressCircumference - (percentage / 100) * progressCircumference;
+    
+    return {
+      total,
+      completed,
+      percentage,
+      quizAverage,
+      bookmarked,
+      inProgress,
+      studyTime,
+      progressCircumference,
+      progressOffset
+    };
+  },
+
+  // Check if chapter has been started
+  hasStartedChapter(subjectId, chapterId, progress) {
+    const subjectProgress = progress[subjectId] || {};
+    const scores = subjectProgress.scores || {};
+    return scores.hasOwnProperty(chapterId);
+  },
+
+  // Check if chapter should be shown based on filter
+  shouldShowChapter(filter, isCompleted, isBookmarked, isInProgress) {
+    switch (filter) {
+      case 'all': return true;
+      case 'completed': return isCompleted;
+      case 'bookmarked': return isBookmarked;
+      case 'in-progress': return isInProgress;
+      default: return true;
+    }
+  },
+
+  // Setup filter tabs
+  setupFilterTabs() {
+    const tabs = document.querySelectorAll('.tf-btn');
+    const chapters = document.querySelectorAll('.chapter-card-mobile');
+    
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        // Update active tab
+        tabs.forEach(t => t.classList.remove('on'));
+        tab.classList.add('on');
+        
+        // Update current filter
+        this.currentFilter = tab.dataset.filter;
+        
+        // Re-render chapters with new filter
+        this.render();
+      });
+    });
+  },
+
+  // Setup bookmark toggles
+  setupBookmarkToggles() {
+    const bookmarkIcons = document.querySelectorAll('.bookmark-icon');
+    bookmarkIcons.forEach(icon => {
+      icon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const chapterCard = icon.closest('.chapter-card-mobile');
+        const chapterId = chapterCard.dataset.chapterId;
+        
+        const isBookmarked = App.toggleBookmark(this.currentSubject.id, chapterId);
+        icon.className = `bookmark-icon ${isBookmarked ? 'active' : ''}`;
+        icon.textContent = isBookmarked ? '🔖' : '📌';
+        
+        App.toast(isBookmarked ? 'Chapter bookmarked' : 'Bookmark removed', 
+                 isBookmarked ? '🔖' : '📌');
+      });
+    });
+  },
+
+  // Refresh page with new data
+  async refresh() {
+    console.log('🔄 Refreshing subject page...');
+    await this.render();
+    App.toast('Subject updated', '🔄');
+  }
+};
+
+// Initialize subject page when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // Initialize app
+    await App.init();
+    
+    // Check authentication
+    if (!App.hasProfile()) {
+      location.href = 'dashboard.html';
+      return;
+    }
+    
+    // Initialize page
+    App.initPage('subject');
+    App.renderBottomNav('subjects');
+    
+    // Render subject
+    await SubjectPage.render();
+    
+    // Setup page-specific refresh
+    App.refreshCurrentPage = () => SubjectPage.refresh();
+    
+  } catch (error) {
+    console.error('❌ Subject page initialization failed:', error);
+    App.toast('Page initialization failed', '❌');
+  }
+});
+</script>
+
+</body>
+</html>

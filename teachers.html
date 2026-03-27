@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Teachers — Vidya Mandir</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .t-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+    .t-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r-lg);padding:16px;cursor:pointer;transition:all var(--t) var(--ease);position:relative;overflow:hidden}
+    .t-card:hover{transform:translateY(-4px) rotateX(1.5deg);box-shadow:var(--shadow-lg);border-color:var(--accent)}
+    .t-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--tc,var(--accent))}
+    .t-row{display:flex;align-items:center;gap:12px}
+    .t-av{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;background:var(--tc,var(--accent));box-shadow:0 10px 26px rgba(var(--accent-rgb),.18)}
+    .t-name{font-size:.95rem;font-weight:800;color:var(--ink);line-height:1.2}
+    .t-sub{font-size:.74rem;color:var(--ink-3);margin-top:2px}
+    .t-pill{margin-left:auto;font-size:.68rem;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(var(--accent-rgb),.22)}
+  </style>
+</head>
+<body>
+  <div id="nb"></div>
+  <div class="page-layout">
+    <div id="sb"></div>
+    <main class="main-area" id="mainArea">
+      <div style="display:flex;align-items:center;justify-content:center;padding:80px 0"><div class="spinner"></div></div>
+    </main>
+  </div>
+  <div class="page-watermark"></div>
+
+  <script src="js/app.js"></script>
+  <script src="js/security.js"></script>
+  <script src="js/theme_todo.js"></script>
+  <script>
+  'use strict';
+
+  const TeachersPage = {
+    async init(){
+      App.initPage('teachers');
+      await App.loadData();
+      const d = App._parseLS('vm_admin_data', {teachers:[]});
+      const builtIn = [];
+      (App._data?.subjects||[]).forEach(s=>{
+        (s.chapters||[]).forEach(ch=>{
+          (ch.teachers||[]).forEach(t=>builtIn.push({...t, subject: s.id}));
+        });
+      });
+      const all = [...builtIn, ...(d.teachers||[])];
+
+      // Deduplicate (name+channel+subject)
+      const key = t => `${(t.name||'').toLowerCase()}::${(t.channel||'').toLowerCase()}::${t.subject||''}`;
+      const map = new Map();
+      all.forEach(t=>{ if(t?.name) map.set(key(t), t); });
+      const teachers = [...map.values()].sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+
+      const main = document.getElementById('mainArea');
+      main.innerHTML = `
+        <div class="page-head au">
+          <div class="breadcrumb"><a href="dashboard.html">Dashboard</a><span class="sep">›</span><span>Teachers</span></div>
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:10px">
+            <div>
+              <div class="h1" style="margin-bottom:6px">👨‍🏫 Teachers</div>
+              <div style="font-size:.86rem;color:var(--ink-3)">Choose an educator, then jump into chapters.</div>
+            </div>
+            <span class="chip chip-b">${teachers.length} profiles</span>
+          </div>
+        </div>
+        <div class="t-grid" id="tGrid"></div>
+      `;
+
+      const subjName = (id)=>{
+        const s = App.getSubject(id);
+        return s ? s.name : (id ? id : 'All Subjects');
+      };
+
+      document.getElementById('tGrid').innerHTML = teachers.length ? teachers.map((t,i)=>`
+        <div class="t-card au" style="animation-delay:${i*30}ms;--tc:${t.color||'var(--accent)'}" tabindex="0" role="button" data-name="${VidyaSec.sanitize(t.name)}">
+          <div class="t-row">
+            <div class="t-av">${VidyaSec.sanitize((t.avatar||t.name?.[0]||'T').slice(0,2))}</div>
+            <div style="min-width:0;flex:1">
+              <div class="t-name">${VidyaSec.sanitize(t.name)}</div>
+              <div class="t-sub">📺 ${VidyaSec.sanitize(t.channel||'')}</div>
+            </div>
+            <div class="t-pill">${VidyaSec.sanitize(subjName(t.subject))}</div>
+          </div>
+        </div>
+      `).join('') : `<div style="color:var(--ink-4);padding:18px">No teachers added yet. Admin can add teachers from Control Panel.</div>`;
+
+      main.addEventListener('click', e=>{
+        const card = e.target.closest('.t-card');
+        if(!card) return;
+        App.toast('Tip: pick any chapter and select this teacher inside the lesson.','👨‍🏫');
+      });
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded',()=>TeachersPage.init());
+  </script>
+  <script src="js/music.js"></script>
+</body>
+</html>
+

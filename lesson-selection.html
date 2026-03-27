@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Lesson Selection — Class 10Edu</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/mobile.css">
+  <style>
+    .modal-overlay {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999; opacity: 0; animation: fadeIn 0.3s forwards;
+    }
+    .modal-content {
+      background: var(--surface); border-radius: var(--r-xl);
+      max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;
+      box-shadow: var(--shadow-xl); transform: scale(0.9);
+      animation: modalSlide 0.3s forwards;
+    }
+    @keyframes modalSlide { to { transform: scale(1); } }
+    .teacher-grid, .content-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px; padding: 24px;
+    }
+    .teacher-card, .content-card {
+      background: var(--bg-2); border: 2px solid var(--border);
+      border-radius: var(--r-lg); padding: 20px; text-align: center;
+      cursor: pointer; transition: all 0.2s var(--spring);
+      min-height: 120px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px;
+    }
+    .teacher-card:hover, .content-card:hover {
+      border-color: var(--accent); transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+    .teacher-card.selected, .content-card.selected {
+      border-color: var(--accent); background: rgba(var(--accent-rgb), 0.1);
+    }
+    .teacher-icon, .content-icon {
+      font-size: 2.5rem; margin-bottom: 8px;
+    }
+    .teacher-name, .content-title {
+      font-weight: 600; font-size: 0.9rem; color: var(--text-primary);
+      margin: 0;
+    }
+    .teacher-subject, .content-subtitle {
+      font-size: 0.8rem; color: var(--text-secondary); margin: 4px 0 0;
+    }
+    .modal-header {
+      padding: 24px 24px 0; text-align: center;
+    }
+    .modal-title {
+      font-size: 1.4rem; font-weight: 700; margin: 0 0 8px;
+      color: var(--text-primary);
+    }
+    .modal-subtitle {
+      color: var(--text-secondary); margin: 0 0 24px;
+    }
+    .modal-actions {
+      padding: 0 24px 24px; display: flex; gap: 12px;
+    }
+    .modal-back {
+      position: absolute; top: 16px; left: 16px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: 50%; width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .modal-back:hover { background: var(--bg-3); }
+    @media(max-width:480px) {
+      .teacher-grid, .content-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 16px; }
+      .teacher-card, .content-card { padding: 16px; min-height: 100px; }
+      .teacher-icon, .content-icon { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+<div id="nb"></div>
+<div class="page-layout">
+  <div id="sb"></div>
+  <main class="main-area" id="mainArea">
+    <div style="display:flex;align-items:center;justify-content:center;padding:80px 0">
+      <div class="spinner"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Scripts -->
+<script src="js/data-manager.js"></script>
+<script src="js/realtime.js"></script>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+
+<script>
+// Lesson Selection Modal
+const LessonSelection = {
+  currentStep: 'teacher',
+  selectedTeacher: null,
+  selectedContent: null,
+  chapterData: null,
+  subjectData: null,
+
+  async init() {
+    try {
+      console.log('🎓 Initializing lesson selection...');
+      
+      // Get parameters
+      const subjectId = App.getParam('subject');
+      const chapterId = App.getParam('chapter');
+      
+      if (!subjectId || !chapterId) {
+        throw new Error('Missing subject or chapter ID');
+      }
+      
+      // Load data
+      const subject = await App.getSubject(subjectId);
+      const chapter = await App.getChapter(subjectId, chapterId);
+      
+      if (!subject || !chapter) {
+        throw new Error('Subject or chapter not found');
+      }
+      
+      this.subjectData = subject;
+      this.chapterData = chapter;
+      
+      // Show teacher selection modal
+      this.showTeacherSelection();
+      
+    } catch (error) {
+      console.error('❌ Lesson selection init failed:', error);
+      App.toast('Failed to load lesson selection', '❌');
+      this.close();
+    }
+  },
+
+  showTeacherSelection() {
+    const overlay = this.createModalOverlay();
+    const teachers = this.getTeacherOptions();
+    
+    overlay.innerHTML = `
+      <div class="modal-content">
+        <button class="modal-back" onclick="LessonSelection.close()">✕</button>
+        
+        <div class="modal-header">
+          <h2 class="modal-title">Choose Your Teacher</h2>
+          <p class="modal-subtitle">Select a teacher to guide you through this chapter</p>
+        </div>
+        
+        <div class="teacher-grid">
+          ${teachers.map(teacher => `
+            <div class="teacher-card ${this.selectedTeacher === teacher.id ? 'selected' : ''}" 
+                 data-teacher-id="${teacher.id}"
+                 onclick="LessonSelection.selectTeacher('${teacher.id}')">
+              <div class="teacher-icon">${teacher.icon}</div>
+              <h3 class="teacher-name">${VidyaSec.sanitize(teacher.name)}</h3>
+              <p class="teacher-subject">${VidyaSec.sanitize(teacher.speciality || 'Expert Teacher')}</p>
+            </div>
+          `).join('')}
+        </div>
+        
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="LessonSelection.close()">Cancel</button>
+          <button class="btn btn-b" ${!this.selectedTeacher ? 'disabled' : ''} 
+                  onclick="LessonSelection.proceedToContent()">
+            Continue →
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+  },
+
+  showContentSelection() {
+    const overlay = this.createModalOverlay();
+    const contentTypes = this.getContentOptions();
+    
+    overlay.innerHTML = `
+      <div class="modal-content">
+        <button class="modal-back" onclick="LessonSelection.backToTeacher()">←</button>
+        
+        <div class="modal-header">
+          <h2 class="modal-title">Choose Content Type</h2>
+          <p class="modal-subtitle">How would you like to learn this chapter?</p>
+        </div>
+        
+        <div class="content-grid">
+          ${contentTypes.map(content => `
+            <div class="content-card ${this.selectedContent === content.id ? 'selected' : ''}" 
+                 data-content-id="${content.id}"
+                 onclick="LessonSelection.selectContent('${content.id}')">
+              <div class="content-icon">${content.icon}</div>
+              <h3 class="content-title">${VidyaSec.sanitize(content.title)}</h3>
+              <p class="content-subtitle">${VidyaSec.sanitize(content.subtitle)}</p>
+            </div>
+          `).join('')}
+        </div>
+        
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="LessonSelection.backToTeacher()">← Back</button>
+          <button class="btn btn-b" ${!this.selectedContent ? 'disabled' : ''} 
+                  onclick="LessonSelection.startLesson()">
+            Start Learning →
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+  },
+
+  getTeacherOptions() {
+    // Default teachers + chapter-specific teachers
+    const defaultTeachers = [
+      { id: 'default', name: 'Standard Teacher', icon: '👨‍🏫', speciality: 'All Subjects' },
+      { id: 'friendly', name: 'Friendly Guide', icon: '😊', speciality: 'Easy Learning' },
+      { id: 'expert', name: 'Expert Teacher', icon: '🎓', speciality: 'Deep Knowledge' },
+      { id: 'quick', name: 'Quick Review', icon: '⚡', speciality: 'Fast Learning' }
+    ];
+    
+    // Add chapter-specific teachers if available
+    if (this.chapterData.teachers && this.chapterData.teachers.length > 0) {
+      return [...this.chapterData.teachers, ...defaultTeachers];
+    }
+    
+    return defaultTeachers;
+  },
+
+  getContentOptions() {
+    const options = [];
+    
+    // Video lessons
+    if (this.chapterData.lessons && this.chapterData.lessons.length > 0) {
+      options.push({
+        id: 'video',
+        title: 'Video Lessons',
+        subtitle: `${this.chapterData.lessons.length} videos available`,
+        icon: '📹'
+      });
+    }
+    
+    // Reading materials
+    if (this.chapterData.notes && this.chapterData.notes.length > 0) {
+      options.push({
+        id: 'reading',
+        title: 'Reading Materials',
+        subtitle: `${this.chapterData.notes.length} notes available`,
+        icon: '📖'
+      });
+    }
+    
+    // Interactive quiz
+    if (this.chapterData.quiz) {
+      options.push({
+        id: 'quiz',
+        title: 'Practice Quiz',
+        subtitle: 'Test your knowledge',
+        icon: '📝'
+      });
+    }
+    
+    // NCERT topics
+    if (this.chapterData.ncertTopics && this.chapterData.ncertTopics.length > 0) {
+      options.push({
+        id: 'ncert',
+        title: 'NCERT Topics',
+        subtitle: `${this.chapterData.ncertTopics.length} topics`,
+        icon: '📚'
+      });
+    }
+    
+    // Default options
+    if (options.length === 0) {
+      options.push(
+        {
+          id: 'video',
+          title: 'Video Lessons',
+          subtitle: 'Learn with videos',
+          icon: '📹'
+        },
+        {
+          id: 'reading',
+          title: 'Reading Materials',
+          subtitle: 'Read and study',
+          icon: '📖'
+        },
+        {
+          id: 'quiz',
+          title: 'Practice Quiz',
+          subtitle: 'Test yourself',
+          icon: '📝'
+        }
+      );
+    }
+    
+    return options;
+  },
+
+  selectTeacher(teacherId) {
+    this.selectedTeacher = teacherId;
+    
+    // Update UI
+    document.querySelectorAll('.teacher-card').forEach(card => {
+      card.classList.toggle('selected', card.dataset.teacherId === teacherId);
+    });
+    
+    // Enable continue button
+    const continueBtn = document.querySelector('.modal-actions .btn-b');
+    if (continueBtn) {
+      continueBtn.disabled = false;
+    }
+    
+    // Save preference
+    localStorage.setItem('vm_preferred_teacher', teacherId);
+  },
+
+  selectContent(contentId) {
+    this.selectedContent = contentId;
+    
+    // Update UI
+    document.querySelectorAll('.content-card').forEach(card => {
+      card.classList.toggle('selected', card.dataset.contentId === contentId);
+    });
+    
+    // Enable start button
+    const startBtn = document.querySelector('.modal-actions .btn-b');
+    if (startBtn) {
+      startBtn.disabled = false;
+    }
+  },
+
+  proceedToContent() {
+    if (!this.selectedTeacher) return;
+    
+    this.currentStep = 'content';
+    this.showContentSelection();
+  },
+
+  backToTeacher() {
+    this.currentStep = 'teacher';
+    this.selectedContent = null;
+    this.showTeacherSelection();
+  },
+
+  startLesson() {
+    if (!this.selectedTeacher || !this.selectedContent) return;
+    
+    // Save selection to progress
+    this.saveLessonSelection();
+    
+    // Navigate to appropriate content
+    this.navigateToContent();
+    
+    // Close modal
+    this.close();
+  },
+
+  saveLessonSelection() {
+    try {
+      const progress = App.getProgress();
+      const subjectId = this.subjectData.id;
+      const chapterId = this.chapterData.id;
+      
+      if (!progress[subjectId]) {
+        progress[subjectId] = { done: [], scores: {}, last: null };
+      }
+      
+      // Save lesson preferences
+      progress[subjectId].lessonPreferences = {
+        teacher: this.selectedTeacher,
+        contentType: this.selectedContent,
+        timestamp: Date.now()
+      };
+      
+      App._saveLS('vm_progress', progress);
+      
+      console.log('✅ Lesson selection saved');
+    } catch (error) {
+      console.error('❌ Failed to save lesson selection:', error);
+    }
+  },
+
+  navigateToContent() {
+    const subjectId = this.subjectData.id;
+    const chapterId = this.chapterData.id;
+    
+    switch (this.selectedContent) {
+      case 'video':
+        // Navigate to chapter page with video tab active
+        location.href = `chapter.html?subject=${subjectId}&chapter=${chapterId}&tab=lessons`;
+        break;
+      case 'reading':
+        // Navigate to chapter page with notes tab active
+        location.href = `chapter.html?subject=${subjectId}&chapter=${chapterId}&tab=notes`;
+        break;
+      case 'quiz':
+        // Navigate to chapter page with quiz tab active
+        location.href = `chapter.html?subject=${subjectId}&chapter=${chapterId}&tab=quiz`;
+        break;
+      case 'ncert':
+        // Navigate to chapter page with NCERT tab active
+        location.href = `chapter.html?subject=${subjectId}&chapter=${chapterId}&tab=ncert`;
+        break;
+      default:
+        // Default to chapter page
+        location.href = `chapter.html?subject=${subjectId}&chapter=${chapterId}`;
+    }
+  },
+
+  createModalOverlay() {
+    let overlay = document.querySelector('.modal-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+    }
+    return overlay;
+  },
+
+  close() {
+    const overlay = document.querySelector('.modal-overlay');
+    if (overlay) {
+      overlay.remove();
+    }
+    
+    // Go back if no referrer
+    if (!document.referrer || document.referrer === window.location.href) {
+      location.href = `subject.html?id=${this.subjectData.id}`;
+    }
+  }
+};
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // Initialize app
+    await App.init();
+    
+    // Check authentication
+    if (!App.hasProfile()) {
+      location.href = 'dashboard.html';
+      return;
+    }
+    
+    // Initialize lesson selection
+    await LessonSelection.init();
+    
+  } catch (error) {
+    console.error('❌ Lesson selection initialization failed:', error);
+    App.toast('Initialization failed', '❌');
+  }
+});
+
+// Handle escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    LessonSelection.close();
+  }
+});
+</script>
+
+</body>
+</html>

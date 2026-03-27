@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Debug — Class 10Edu</title>
+<style>
+body { font-family: system-ui; margin: 20px; background: #f8f9fa; }
+.container { max-width: 800px; margin: 0 auto; }
+.header { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.debug-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; margin: 5px; }
+.btn-success { background: #10b981; color: white; }
+.btn-danger { background: #ef4444; color: white; }
+.btn-primary { background: #3b82f6; color: white; }
+.log { background: #1e293b; color: #e2e8f0; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; margin-top: 10px; }
+.status { padding: 10px; border-radius: 6px; margin: 10px 0; }
+.status.success { background: #10b981; color: white; }
+.status.error { background: #ef4444; color: white; }
+.status.warning { background: #f59e0b; color: white; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🔧 Debug Dashboard</h1>
+    <p>Diagnose and fix critical bugs</p>
+  </div>
+
+  <div class="debug-section">
+    <h2>🔍 System Diagnostics</h2>
+    <button class="btn btn-primary" onclick="checkDependencies()">Check Dependencies</button>
+    <button class="btn btn-primary" onclick="checkDataLoad()">Check Data Loading</button>
+    <button class="btn btn-primary" onclick="checkLocalStorage()">Check Local Storage</button>
+    <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
+    <div id="diagnosticStatus"></div>
+  </div>
+
+  <div class="debug-section">
+    <h2>🧪 Test Components</h2>
+    <button class="btn btn-success" onclick="testDashboard()">Test Dashboard</button>
+    <button class="btn btn-success" onclick="testAppInit()">Test App Init</button>
+    <button class="btn btn-success" onclick="testDataManager()">Test Data Manager</button>
+    <button class="btn btn-success" onclick="testRealtime()">Test Realtime</button>
+    <div id="testStatus"></div>
+  </div>
+
+  <div class="debug-section">
+    <h2>📋 Console Log</h2>
+    <button class="btn btn-primary" onclick="clearLog()">Clear Log</button>
+    <button class="btn btn-primary" onclick="exportLog()">Export Log</button>
+    <div class="log" id="debugLog"></div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="js/data-manager.js"></script>
+<script src="js/realtime.js"></script>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+
+<script>
+// Debug System
+const DebugSystem = {
+  log(message, type = 'info') {
+    const log = document.getElementById('debugLog');
+    const timestamp = new Date().toLocaleTimeString();
+    const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+    log.innerHTML = `[${timestamp}] ${icon} ${message}\n` + log.innerHTML;
+    
+    // Keep only last 100 lines
+    const lines = log.innerHTML.split('\n');
+    if (lines.length > 100) {
+      log.innerHTML = lines.slice(0, 100).join('\n');
+    }
+  },
+  
+  showStatus(message, type = 'info') {
+    const status = document.getElementById('diagnosticStatus');
+    status.innerHTML = `<div class="status ${type}">${message}</div>`;
+  },
+  
+  showTestStatus(message, type = 'info') {
+    const status = document.getElementById('testStatus');
+    status.innerHTML = `<div class="status ${type}">${message}</div>`;
+  },
+  
+  clearLog() {
+    document.getElementById('debugLog').innerHTML = '';
+    this.log('📋 Log cleared');
+  },
+  
+  exportLog() {
+    const log = document.getElementById('debugLog').textContent;
+    const blob = new Blob([log], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `debug-log-${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    this.log('📤 Log exported');
+  }
+};
+
+// Diagnostic Functions
+function checkDependencies() {
+  DebugSystem.log('🔍 Checking dependencies...');
+  
+  const dependencies = [
+    { name: 'DataManager', obj: window.DataManager },
+    { name: 'RealTimeManager', obj: window.RealTimeManager },
+    { name: 'App', obj: window.App },
+    { name: 'Security', obj: window.VidyaSec }
+  ];
+  
+  let allGood = true;
+  dependencies.forEach(dep => {
+    if (dep.obj) {
+      DebugSystem.log(`✅ ${dep.name} available`, 'success');
+    } else {
+      DebugSystem.log(`❌ ${dep.name} NOT available`, 'error');
+      allGood = false;
+    }
+  });
+  
+  DebugSystem.showStatus(allGood ? '✅ All dependencies loaded' : '❌ Missing dependencies', allGood ? 'success' : 'error');
+}
+
+function checkDataLoad() {
+  DebugSystem.log('🔍 Checking data loading...');
+  
+  try {
+    if (window.DataManager) {
+      window.DataManager.getData().then(data => {
+        if (data && data.subjects) {
+          DebugSystem.log(`✅ Data loaded - ${data.subjects.length} subjects`, 'success');
+          DebugSystem.showStatus(`✅ Data loaded successfully`, 'success');
+        } else {
+          DebugSystem.log('❌ Data loaded but invalid structure', 'error');
+          DebugSystem.showStatus('❌ Invalid data structure', 'error');
+        }
+      }).catch(error => {
+        DebugSystem.log(`❌ Data load failed: ${error.message}`, 'error');
+        DebugSystem.showStatus('❌ Data load failed', 'error');
+      });
+    } else {
+      DebugSystem.log('❌ DataManager not available', 'error');
+      DebugSystem.showStatus('❌ DataManager not available', 'error');
+    }
+  } catch (error) {
+    DebugSystem.log(`❌ Check failed: ${error.message}`, 'error');
+    DebugSystem.showStatus('❌ Check failed', 'error');
+  }
+}
+
+function checkLocalStorage() {
+  DebugSystem.log('🔍 Checking localStorage...');
+  
+  try {
+    const keys = ['vm_app_data', 'vm_live_updates', 'vm_progress', 'vm_profile'];
+    let allGood = true;
+    
+    keys.forEach(key => {
+      try {
+        const value = localStorage.getItem(key);
+        if (value) {
+          const parsed = JSON.parse(value);
+          DebugSystem.log(`✅ ${key}: ${JSON.stringify(parsed).substring(0, 50)}...`, 'success');
+        } else {
+          DebugSystem.log(`⚠️ ${key}: empty`, 'warning');
+        }
+      } catch (error) {
+        DebugSystem.log(`❌ ${key}: invalid JSON - ${error.message}`, 'error');
+        allGood = false;
+      }
+    });
+    
+    DebugSystem.showStatus(allGood ? '✅ localStorage OK' : '❌ localStorage issues', allGood ? 'success' : 'error');
+  } catch (error) {
+    DebugSystem.log(`❌ localStorage check failed: ${error.message}`, 'error');
+    DebugSystem.showStatus('❌ localStorage check failed', 'error');
+  }
+}
+
+function clearAllData() {
+  if (confirm('This will clear all data. Are you sure?')) {
+    try {
+      localStorage.clear();
+      DebugSystem.log('🗑️ All localStorage cleared', 'success');
+      DebugSystem.showStatus('✅ All data cleared', 'success');
+    } catch (error) {
+      DebugSystem.log(`❌ Clear failed: ${error.message}`, 'error');
+      DebugSystem.showStatus('❌ Clear failed', 'error');
+    }
+  }
+}
+
+// Test Functions
+function testDashboard() {
+  DebugSystem.log('🧪 Testing dashboard...');
+  
+  try {
+    // Test if dashboard elements exist
+    const mainArea = document.getElementById('mainArea');
+    if (mainArea) {
+      DebugSystem.log('✅ Dashboard main area found', 'success');
+      
+      // Test basic rendering
+      mainArea.innerHTML = '<div style="padding:20px;text-align:center"><h2>🎯 Dashboard Test</h2><p>Dashboard is working!</p></div>';
+      DebugSystem.showTestStatus('✅ Dashboard test passed', 'success');
+    } else {
+      DebugSystem.log('❌ Dashboard main area not found', 'error');
+      DebugSystem.showTestStatus('❌ Dashboard test failed', 'error');
+    }
+  } catch (error) {
+    DebugSystem.log(`❌ Dashboard test failed: ${error.message}`, 'error');
+    DebugSystem.showTestStatus('❌ Dashboard test failed', 'error');
+  }
+}
+
+function testAppInit() {
+  DebugSystem.log('🧪 Testing app initialization...');
+  
+  try {
+    if (window.App) {
+      App.init().then(() => {
+        DebugSystem.log('✅ App initialized successfully', 'success');
+        DebugSystem.showTestStatus('✅ App init test passed', 'success');
+      }).catch(error => {
+        DebugSystem.log(`❌ App init failed: ${error.message}`, 'error');
+        DebugSystem.showTestStatus('❌ App init test failed', 'error');
+      });
+    } else {
+      DebugSystem.log('❌ App not available', 'error');
+      DebugSystem.showTestStatus('❌ App not available', 'error');
+    }
+  } catch (error) {
+    DebugSystem.log(`❌ App init test failed: ${error.message}`, 'error');
+    DebugSystem.showTestStatus('❌ App init test failed', 'error');
+  }
+}
+
+function testDataManager() {
+  DebugSystem.log('🧪 Testing data manager...');
+  
+  try {
+    if (window.DataManager) {
+      DataManager.getData().then(data => {
+        if (data) {
+          DebugSystem.log(`✅ Data manager working - ${data.subjects?.length || 0} subjects`, 'success');
+          DebugSystem.showTestStatus('✅ Data manager test passed', 'success');
+        } else {
+          DebugSystem.log('❌ Data manager returned null', 'error');
+          DebugSystem.showTestStatus('❌ Data manager test failed', 'error');
+        }
+      }).catch(error => {
+        DebugSystem.log(`❌ Data manager test failed: ${error.message}`, 'error');
+        DebugSystem.showTestStatus('❌ Data manager test failed', 'error');
+      });
+    } else {
+      DebugSystem.log('❌ Data manager not available', 'error');
+      DebugSystem.showTestStatus('❌ Data manager not available', 'error');
+    }
+  } catch (error) {
+    DebugSystem.log(`❌ Data manager test failed: ${error.message}`, 'error');
+    DebugSystem.showTestStatus('❌ Data manager test failed', 'error');
+  }
+}
+
+function testRealtime() {
+  DebugSystem.log('🧪 Testing realtime system...');
+  
+  try {
+    if (window.RealTimeManager) {
+      const eventId = RealTimeManager.emitEvent('test:event', { message: 'test' });
+      DebugSystem.log(`✅ Realtime working - event ID: ${eventId}`, 'success');
+      DebugSystem.showTestStatus('✅ Realtime test passed', 'success');
+    } else {
+      DebugSystem.log('❌ Realtime manager not available', 'error');
+      DebugSystem.showTestStatus('❌ Realtime manager not available', 'error');
+    }
+  } catch (error) {
+    DebugSystem.log(`❌ Realtime test failed: ${error.message}`, 'error');
+    DebugSystem.showTestStatus('❌ Realtime test failed', 'error');
+  }
+}
+
+// Initialize debug system
+document.addEventListener('DOMContentLoaded', () => {
+  DebugSystem.log('🚀 Debug system initialized');
+  checkDependencies();
+});
+</script>
+
+</body>
+</html>

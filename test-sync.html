@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Real-Time Sync Test — Class 10Edu</title>
+<style>
+body { font-family: system-ui; margin: 20px; background: #f8f9fa; }
+.container { max-width: 1200px; margin: 0 auto; }
+.header { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.test-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; margin: 5px; }
+.btn-primary { background: #3b82f6; color: white; }
+.btn-success { background: #10b981; color: white; }
+.btn-danger { background: #ef4444; color: white; }
+.btn-warning { background: #f59e0b; color: white; }
+.log { background: #1e293b; color: #e2e8f0; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; margin-top: 10px; }
+.status { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+.status-item { padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+.status-online { background: #10b981; color: white; }
+.status-offline { background: #ef4444; color: white; }
+.status-syncing { background: #f59e0b; color: white; }
+.test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.test-column { background: #f8f9fa; padding: 15px; border-radius: 8px; }
+.test-title { font-weight: 600; margin-bottom: 10px; color: #1e293b; }
+.mock-data { background: #e2e8f0; padding: 10px; border-radius: 6px; margin: 10px 0; font-family: monospace; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🔄 Admin → Student Real-Time Sync Test</h1>
+    <p>Comprehensive testing of the real-time synchronization system</p>
+    <div class="status" id="statusBar">
+      <div class="status-item status-online" id="networkStatus">🌐 Online</div>
+      <div class="status-item status-syncing" id="syncStatus">🔄 Ready</div>
+      <div class="status-item" id="queueStatus">📦 Queue: 0</div>
+      <div class="status-item" id="dataStatus">📊 Data: Loaded</div>
+    </div>
+  </div>
+
+  <div class="test-grid">
+    <!-- Admin Panel -->
+    <div class="test-column">
+      <div class="test-title">🛠️ Admin Actions</div>
+      
+      <div class="test-section">
+        <h3>Data Modifications</h3>
+        <button class="btn btn-primary" onclick="testAddSubject()">Add Subject</button>
+        <button class="btn btn-primary" onclick="testUpdateChapter()">Update Chapter</button>
+        <button class="btn btn-primary" onclick="testAddLesson()">Add Lesson</button>
+        <button class="btn btn-danger" onclick="testDeleteContent()">Delete Content</button>
+        
+        <div class="mock-data" id="adminData">
+          Admin data will appear here...
+        </div>
+      </div>
+      
+      <div class="test-section">
+        <h3>Batch Operations</h3>
+        <button class="btn btn-warning" onclick="testBatchUpdate()">Batch Update</button>
+        <button class="btn btn-warning" onclick="testMassDelete()">Mass Delete</button>
+        <button class="btn btn-success" onclick="testRestoreData()">Restore Data</button>
+      </div>
+    </div>
+
+    <!-- Student Panel -->
+    <div class="test-column">
+      <div class="test-title">👨‍🎓 Student View</div>
+      
+      <div class="test-section">
+        <h3>Real-Time Updates</h3>
+        <button class="btn btn-success" onclick="openStudentTab()">Open Student Tab</button>
+        <button class="btn btn-success" onclick="simulateStudentView()">Simulate View</button>
+        <button class="btn btn-warning" onclick="checkStudentData()">Check Data</button>
+        
+        <div class="mock-data" id="studentData">
+          Student data will appear here...
+        </div>
+      </div>
+      
+      <div class="test-section">
+        <h3>Sync Verification</h3>
+        <button class="btn btn-primary" onclick="verifySync()">Verify Sync</button>
+        <button class="btn btn-danger" onclick="breakSync()">Break Sync</button>
+        <button class="btn btn-success" onclick="repairSync()">Repair Sync</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>📊 Test Logs</h2>
+    <button class="btn btn-primary" onclick="clearLogs()">Clear Logs</button>
+    <button class="btn btn-success" onclick="exportLogs()">Export Logs</button>
+    <div class="log" id="testLog"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>🧪 Advanced Tests</h2>
+    <button class="btn btn-warning" onclick="testConcurrentUpdates()">Concurrent Updates</button>
+    <button class="btn btn-warning" onclick="testNetworkFailure()">Network Failure</button>
+    <button class="btn btn-warning" onclick="testDataCorruption()">Data Corruption</button>
+    <button class="btn btn-danger" onclick="stressTest()">Stress Test</button>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="js/data-manager.js"></script>
+<script src="js/realtime.js"></script>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+<script src="js/admin.js"></script>
+
+<script>
+// Test logging
+function log(message, type = 'info') {
+  const log = document.getElementById('testLog');
+  const timestamp = new Date().toLocaleTimeString();
+  const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+  log.innerHTML = `[${timestamp}] ${icon} ${message}\n` + log.innerHTML;
+  
+  // Keep only last 100 lines
+  const lines = log.innerHTML.split('\n');
+  if (lines.length > 100) {
+    log.innerHTML = lines.slice(0, 100).join('\n');
+  }
+}
+
+// Update status bar
+function updateStatus() {
+  const status = window.RealTimeManager.getStatus();
+  document.getElementById('networkStatus').className = 
+    `status-item ${status.isOnline ? 'status-online' : 'status-offline'}`;
+  document.getElementById('networkStatus').textContent = 
+    status.isOnline ? '🌐 Online' : '📴 Offline';
+  document.getElementById('queueStatus').textContent = 
+    `📦 Queue: ${status.queueLength}`;
+}
+
+// Update data displays
+function updateDataDisplays() {
+  // Admin data
+  const adminData = window.DataManager ? window.DataManager.loadAdminData() : {};
+  const adminDiv = document.getElementById('adminData');
+  adminDiv.textContent = JSON.stringify(adminData, null, 2).substring(0, 500) + '...';
+  
+  // Student data
+  const studentData = window.DataManager ? window.DataManager.cache : {};
+  const studentDiv = document.getElementById('studentData');
+  studentDiv.textContent = JSON.stringify(studentData, null, 2).substring(0, 500) + '...';
+}
+
+// Test functions
+async function testAddSubject() {
+  log('🧪 Testing: Add Subject');
+  
+  try {
+    const newSubject = {
+      id: 'test-subject-' + Date.now(),
+      name: 'Test Subject',
+      icon: '🧪',
+      description: 'A test subject for sync testing',
+      chapters: [
+        {
+          id: '1',
+          title: 'Test Chapter 1',
+          duration: '30 min',
+          lessons: [
+            { id: '1', title: 'Test Lesson 1', duration: '15 min' }
+          ]
+        }
+      ]
+    };
+    
+    // Load existing admin data
+    const adminData = window.DataManager.loadAdminData() || { subjects: [] };
+    adminData.subjects.push(newSubject);
+    
+    // Save through admin system
+    if (window.Admin) {
+      window.Admin.appData = adminData;
+      window.Admin.saveData();
+    } else {
+      window.DataManager.saveAdminData(adminData);
+    }
+    
+    log('✅ Subject added successfully', 'success');
+    updateDataDisplays();
+    
+  } catch (error) {
+    log(`❌ Add subject failed: ${error.message}`, 'error');
+  }
+}
+
+async function testUpdateChapter() {
+  log('🧪 Testing: Update Chapter');
+  
+  try {
+    const adminData = window.DataManager.loadAdminData() || { subjects: [] };
+    if (adminData.subjects.length === 0) {
+      log('⚠️ No subjects to update', 'warning');
+      return;
+    }
+    
+    const subject = adminData.subjects[0];
+    if (subject.chapters && subject.chapters.length > 0) {
+      subject.chapters[0].title = 'Updated Chapter - ' + Date.now();
+      subject.chapters[0].duration = '45 min';
+      
+      if (window.Admin) {
+        window.Admin.appData = adminData;
+        window.Admin.saveData();
+      } else {
+        window.DataManager.saveAdminData(adminData);
+      }
+      
+      log('✅ Chapter updated successfully', 'success');
+      updateDataDisplays();
+    }
+    
+  } catch (error) {
+    log(`❌ Update chapter failed: ${error.message}`, 'error');
+  }
+}
+
+async function testAddLesson() {
+  log('🧪 Testing: Add Lesson');
+  
+  try {
+    const adminData = window.DataManager.loadAdminData() || { subjects: [] };
+    if (adminData.subjects.length === 0) {
+      log('⚠️ No subjects available', 'warning');
+      return;
+    }
+    
+    const subject = adminData.subjects[0];
+    if (!subject.chapters) subject.chapters = [];
+    if (subject.chapters.length === 0) {
+      subject.chapters.push({
+        id: '1',
+        title: 'Test Chapter',
+        duration: '30 min',
+        lessons: []
+      });
+    }
+    
+    const chapter = subject.chapters[0];
+    if (!chapter.lessons) chapter.lessons = [];
+    
+    chapter.lessons.push({
+      id: String(chapter.lessons.length + 1),
+      title: `New Lesson ${Date.now()}`,
+      duration: '20 min'
+    });
+    
+    if (window.Admin) {
+      window.Admin.appData = adminData;
+      window.Admin.saveData();
+    } else {
+      window.DataManager.saveAdminData(adminData);
+    }
+    
+    log('✅ Lesson added successfully', 'success');
+    updateDataDisplays();
+    
+  } catch (error) {
+    log(`❌ Add lesson failed: ${error.message}`, 'error');
+  }
+}
+
+async function testDeleteContent() {
+  log('🧪 Testing: Delete Content');
+  
+  try {
+    const adminData = window.DataManager.loadAdminData() || { subjects: [] };
+    if (adminData.subjects.length === 0) {
+      log('⚠️ No content to delete', 'warning');
+      return;
+    }
+    
+    // Remove last subject
+    adminData.subjects.pop();
+    
+    if (window.Admin) {
+      window.Admin.appData = adminData;
+      window.Admin.saveData();
+    } else {
+      window.DataManager.saveAdminData(adminData);
+    }
+    
+    log('✅ Content deleted successfully', 'success');
+    updateDataDisplays();
+    
+  } catch (error) {
+    log(`❌ Delete content failed: ${error.message}`, 'error');
+  }
+}
+
+async function testBatchUpdate() {
+  log('🧪 Testing: Batch Update');
+  
+  try {
+    const adminData = window.DataManager.loadAdminData() || { subjects: [] };
+    
+    // Add multiple subjects
+    for (let i = 0; i < 3; i++) {
+      adminData.subjects.push({
+        id: `batch-subject-${i}-${Date.now()}`,
+        name: `Batch Subject ${i + 1}`,
+        icon: '📦',
+        description: `Batch test subject ${i + 1}`,
+        chapters: []
+      });
+    }
+    
+    if (window.Admin) {
+      window.Admin.appData = adminData;
+      window.Admin.saveData();
+    } else {
+      window.DataManager.saveAdminData(adminData);
+    }
+    
+    log('✅ Batch update successful', 'success');
+    updateDataDisplays();
+    
+  } catch (error) {
+    log(`❌ Batch update failed: ${error.message}`, 'error');
+  }
+}
+
+async function testMassDelete() {
+  log('🧪 Testing: Mass Delete');
+  
+  try {
+    const adminData = window.DataManager.loadAdminData() || { subjects: [] };
+    
+    // Keep only first subject
+    if (adminData.subjects.length > 1) {
+      adminData.subjects = [adminData.subjects[0]];
+      
+      if (window.Admin) {
+        window.Admin.appData = adminData;
+        window.Admin.saveData();
+      } else {
+        window.DataManager.saveAdminData(adminData);
+      }
+      
+      log('✅ Mass delete successful', 'success');
+      updateDataDisplays();
+    } else {
+      log('⚠️ Not enough content for mass delete', 'warning');
+    }
+    
+  } catch (error) {
+    log(`❌ Mass delete failed: ${error.message}`, 'error');
+  }
+}
+
+async function testRestoreData() {
+  log('🧪 Testing: Restore Data');
+  
+  try {
+    // Load original subjects.json data
+    const response = await fetch('data/subjects.json');
+    const originalData = await response.json();
+    
+    if (window.Admin) {
+      window.Admin.appData = originalData;
+      window.Admin.saveData();
+    } else {
+      window.DataManager.saveAdminData(originalData);
+    }
+    
+    log('✅ Data restored successfully', 'success');
+    updateDataDisplays();
+    
+  } catch (error) {
+    log(`❌ Restore data failed: ${error.message}`, 'error');
+  }
+}
+
+function openStudentTab() {
+  log('📱 Opening student tab...');
+  window.open('dashboard.html', '_blank');
+}
+
+function simulateStudentView() {
+  log('👨‍🎓 Simulating student view...');
+  
+  // Simulate student data loading
+  setTimeout(() => {
+    updateDataDisplays();
+    log('✅ Student view simulated', 'success');
+  }, 1000);
+}
+
+function checkStudentData() {
+  log('🔍 Checking student data...');
+  
+  const studentData = window.DataManager.cache;
+  const adminData = window.DataManager.loadAdminData();
+  
+  const subjectsMatch = JSON.stringify(studentData?.subjects) === JSON.stringify(adminData?.subjects);
+  
+  if (subjectsMatch) {
+    log('✅ Student data is synchronized', 'success');
+  } else {
+    log('❌ Student data is out of sync', 'error');
+  }
+  
+  updateDataDisplays();
+}
+
+function verifySync() {
+  log('🔍 Verifying sync integrity...');
+  
+  try {
+    const adminData = window.DataManager.loadAdminData();
+    const studentData = window.DataManager.cache;
+    
+    // Check data integrity
+    const adminChecksum = window.DataManager.generateChecksum(adminData);
+    const studentChecksum = window.DataManager.generateChecksum(studentData);
+    
+    if (adminChecksum === studentChecksum) {
+      log('✅ Sync verification passed', 'success');
+    } else {
+      log('❌ Sync verification failed - checksum mismatch', 'error');
+    }
+    
+  } catch (error) {
+    log(`❌ Sync verification failed: ${error.message}`, 'error');
+  }
+}
+
+function breakSync() {
+  log('💥 Breaking sync for testing...');
+  
+  // Simulate sync break by modifying data directly
+  localStorage.setItem('vm_app_data', JSON.stringify({
+    subjects: [{ id: 'broken', name: 'Broken Data' }]
+  }));
+  
+  log('⚠️ Sync broken - test recovery', 'warning');
+}
+
+function repairSync() {
+  log('🔧 Repairing sync...');
+  
+  try {
+    // Clear cache and reload
+    window.DataManager.cache = null;
+    window.DataManager.initialized = false;
+    
+    // Force data reload
+    window.DataManager.getData().then(() => {
+      log('✅ Sync repaired successfully', 'success');
+      updateDataDisplays();
+    });
+    
+  } catch (error) {
+    log(`❌ Sync repair failed: ${error.message}`, 'error');
+  }
+}
+
+async function testConcurrentUpdates() {
+  log('🧪 Testing: Concurrent Updates');
+  
+  try {
+    const promises = [];
+    
+    // Simulate multiple concurrent updates
+    for (let i = 0; i < 5; i++) {
+      promises.push(new Promise(resolve => {
+        setTimeout(() => {
+          const adminData = window.DataManager.loadAdminData() || { subjects: [] };
+          adminData.concurrentTest = adminData.concurrentTest || [];
+          adminData.concurrentTest.push({ update: i, timestamp: Date.now() });
+          
+          window.DataManager.saveAdminData(adminData);
+          resolve();
+        }, i * 100);
+      }));
+    }
+    
+    await Promise.all(promises);
+    log('✅ Concurrent updates completed', 'success');
+    updateDataDisplays();
+    
+  } catch (error) {
+    log(`❌ Concurrent updates failed: ${error.message}`, 'error');
+  }
+}
+
+async function testNetworkFailure() {
+  log('🧪 Testing: Network Failure Simulation');
+  
+  try {
+    // Simulate offline
+    window.RealTimeManager.isOnline = false;
+    
+    // Try to save data
+    const adminData = window.DataManager.loadAdminData() || { subjects: [] };
+    adminData.networkTest = { timestamp: Date.now() };
+    
+    window.DataManager.saveAdminData(adminData);
+    
+    log('⚠️ Network failure simulated - data queued', 'warning');
+    
+    // Restore online
+    setTimeout(() => {
+      window.RealTimeManager.isOnline = true;
+      window.RealTimeManager.processSyncQueue();
+      log('✅ Network restored - queue processed', 'success');
+    }, 2000);
+    
+  } catch (error) {
+    log(`❌ Network failure test failed: ${error.message}`, 'error');
+  }
+}
+
+async function testDataCorruption() {
+  log('🧪 Testing: Data Corruption Recovery');
+  
+  try {
+    // Simulate corrupted data
+    localStorage.setItem('vm_app_data', 'invalid json data');
+    
+    // Try to load data
+    const data = window.DataManager.loadAdminData();
+    
+    if (!data || data.subjects === undefined) {
+      log('✅ Data corruption detected and handled', 'success');
+    } else {
+      log('❌ Data corruption not detected', 'error');
+    }
+    
+    // Repair data
+    await testRestoreData();
+    
+  } catch (error) {
+    log(`❌ Data corruption test failed: ${error.message}`, 'error');
+  }
+}
+
+async function stressTest() {
+  log('🧪 Testing: Stress Test');
+  
+  try {
+    const startTime = Date.now();
+    const operations = 100;
+    
+    for (let i = 0; i < operations; i++) {
+      const adminData = window.DataManager.loadAdminData() || { subjects: [] };
+      adminData.stressTest = adminData.stressTest || [];
+      adminData.stressTest.push({ iteration: i, timestamp: Date.now() });
+      
+      window.DataManager.saveAdminData(adminData);
+    }
+    
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    
+    log(`✅ Stress test completed: ${operations} operations in ${duration}ms`, 'success');
+    updateDataDisplays();
+    
+  } catch (error) {
+    log(`❌ Stress test failed: ${error.message}`, 'error');
+  }
+}
+
+function clearLogs() {
+  document.getElementById('testLog').innerHTML = '';
+  log('📋 Logs cleared');
+}
+
+function exportLogs() {
+  const logs = document.getElementById('testLog').textContent;
+  const blob = new Blob([logs], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sync-test-logs-${new Date().toISOString().split('T')[0]}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  log('📤 Logs exported');
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', async () => {
+  log('🚀 Real-Time Sync Test Initialized');
+  
+  // Initialize systems
+  await App.init();
+  
+  // Update displays
+  updateStatus();
+  updateDataDisplays();
+  
+  // Setup status monitoring
+  setInterval(updateStatus, 2000);
+  
+  // Listen for real-time events
+  if (window.RealTimeManager) {
+    window.RealTimeManager.on('data:admin_update', (event) => {
+      log(`📨 Real-time update received: ${event.type}`, 'success');
+      updateDataDisplays();
+    });
+    
+    window.RealTimeManager.on('sync:success', (event) => {
+      log(`🔄 Sync successful: ${event.data.eventsCount} events`, 'success');
+    });
+    
+    window.RealTimeManager.on('sync:failed', (event) => {
+      log(`❌ Sync failed: ${event.data.error}`, 'error');
+    });
+  }
+  
+  log('✅ Test environment ready');
+});
+</script>
+
+</body>
+</html>

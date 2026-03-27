@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Lesson — Class 10Edu</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    @media(min-width:980px){ .lesson-grid{display:grid;grid-template-columns:1fr 320px;gap:18px} }
+    
+    /* Enhanced animations */
+    .fade-in-up { animation: fadeInUp 0.6s var(--spring) forwards; }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .vid-wrap { transition: all 0.3s var(--spring); }
+    .vid-wrap:hover { transform: translateY(-4px); }
+    
+    .notes-card { transition: all 0.3s var(--spring); }
+    .notes-card:hover { transform: translateY(-2px); }
+    
+    .side-card { transition: all 0.3s var(--spring); }
+    .side-card:hover { transform: translateX(-4px); }
+    
+    .btn { transition: all 0.2s var(--spring); }
+    .btn:hover { transform: translateY(-2px); }
+    
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    .shimmer {
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="nb"></div>
+  <div class="page-layout">
+    <div id="sb"></div>
+    <main class="main-area" id="mainArea">
+      <div style="display:flex;align-items:center;justify-content:center;padding:80px 0"><div class="spinner"></div></div>
+    </main>
+  </div>
+  <div class="page-watermark"></div>
+
+  <script src="js/app.js"></script>
+  <script src="js/security.js"></script>
+  <script src="js/theme_todo.js"></script>
+  <script>
+  'use strict';
+
+  const LessonPage = {
+    async init(){
+      const sid = App.getParam('subject') || '';
+      const cid = App.getParam('chapter') || '';
+      const lid = App.getParam('lesson') || '';
+      if(!sid || !cid){ location.href='dashboard.html'; return; }
+
+      App.initPage(sid);
+      await App.loadData();
+      const subj = App.getSubject(sid);
+      const ch   = App.getChapter(sid,cid);
+      if(!subj || !ch){ location.href='dashboard.html'; return; }
+
+      const lessons = (ch.lessons||[]).map(l=>({ ...l, type:l.type||'video', teacher:l.teacher||'all' }));
+      const idx = lid ? lessons.findIndex(l=>l.id===lid) : 0;
+      const cur = lessons[Math.max(0, idx>=0?idx:0)] || lessons[0];
+
+      const admData = App._parseLS('vm_admin_data', {pdfs:[], teachers:[]});
+      const teachPool = [...(ch.teachers||[]), ...(admData.teachers||[]).filter(t=>!t.subject || t.subject===sid)];
+      const teacherKey = (cur.teacher||'all');
+      const teacher = teachPool.find(t=>`${t.name||''}::${t.channel||''}`===teacherKey) || null;
+
+      const vidSrc = cur?.videoId ? `https://www.youtube-nocookie.com/embed/${cur.videoId}?rel=0&modestbranding=1` : '';
+      document.title = `${cur?.title || ch.title} — Class 10Edu`;
+
+      const main = document.getElementById('mainArea');
+      main.innerHTML = `
+        <div class="page-head au fade-in-up">
+          <div class="breadcrumb">
+            <a href="dashboard.html">Dashboard</a><span class="sep">›</span>
+            <a href="subject.html?id=${sid}">${VidyaSec.sanitize(subj.name)}</a><span class="sep">›</span>
+            <a href="chapter.html?subject=${sid}&chapter=${cid}">${VidyaSec.sanitize(ch.title)}</a><span class="sep">›</span>
+            <span>${VidyaSec.sanitize(cur?.title || 'Lesson')}</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div>
+              <h1 class="shimmer">🎬 ${VidyaSec.sanitize(cur?.title || ch.title)}</h1>
+              <div class="lead" style="display:flex;gap:10px;flex-wrap:wrap">
+                <span class="chip">${subj.icon} ${VidyaSec.sanitize(subj.name)}</span>
+                <span class="chip">⏱ ${VidyaSec.sanitize(cur?.duration || ch.duration)}</span>
+                <span class="chip chip-b pulse">${VidyaSec.sanitize(cur?.type || 'video')}</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <a class="btn btn-gh btn-sm" href="quiz.html?subject=${sid}&chapter=${cid}">🧩 Quiz</a>
+              <a class="btn btn-primary btn-sm" href="lesson-selection.html?subject=${sid}&chapter=${cid}">🔄 Change Format</a>
+              <a class="btn btn-gh btn-sm" href="chapter.html?subject=${sid}&chapter=${cid}">← Back</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="lesson-grid">
+          <div>
+            <div class="vid-wrap au-1 fade-in-up" style="animation-delay: 0.1s">
+              <div class="card-top-rule"></div>
+              ${vidSrc ? `
+                <div class="vid-embed">
+                  <iframe src="${vidSrc}" title="${VidyaSec.sanitize(cur?.title||ch.title)}"
+                    allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"
+                    allowfullscreen loading="lazy"></iframe>
+                </div>
+              `:`
+                <div style="padding:32px;text-align:center;color:var(--ink-3)">
+                  <div style="font-size:44px;margin-bottom:10px">🎬</div>
+                  <p>Video not assigned yet.</p>
+                  <button class="btn btn-primary" style="margin-top:16px" onclick="location.href='lesson-selection.html?subject=${sid}&chapter=${cid}'">
+                    Choose Learning Format
+                  </button>
+                </div>
+              `}
+              <div class="vid-meta">
+                <h3>${VidyaSec.sanitize(cur?.title||ch.title)}</h3>
+                <div style="display:flex;gap:10px;font-size:.73rem;color:var(--ink-3);flex-wrap:wrap">
+                  <span>Chapter: ${VidyaSec.sanitize(ch.title)}</span>
+                  <span>Lesson ID: ${VidyaSec.sanitize(cur?.id||'—')}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="notes-card au-2 fade-in-up" style="animation-delay: 0.2s">
+              <div class="card-top-rule"></div>
+              <div class="sec-head">
+                <h3>📝 Study Notes</h3>
+                <span class="chip chip-b">NCERT Based</span>
+              </div>
+              <div class="notes-body" id="notesBody">${this._renderNotes(ch.notes)}</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="side-card au-2 fade-in-up" style="animation-delay: 0.3s">
+              <div class="card-top-rule"></div>
+              <div class="sec-head"><h3>👨‍🏫 Instructor</h3></div>
+              <div style="padding:14px">
+                ${teacher ? `
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div class="teacher-av pulse" style="width:44px;height:44px;border-radius:14px;background:${teacher.color||'var(--accent)'};color:#fff">
+                      ${VidyaSec.sanitize((teacher.avatar||teacher.name?.[0]||'T').slice(0,2))}
+                    </div>
+                    <div style="min-width:0">
+                      <div style="font-weight:800">${VidyaSec.sanitize(teacher.name)}</div>
+                      <div style="font-size:.75rem;color:var(--ink-3)">📺 ${VidyaSec.sanitize(teacher.channel||'')}</div>
+                    </div>
+                  </div>
+                `:`
+                  <div style="color:var(--ink-3);font-size:.86rem">Instructor not assigned.</div>
+                `}
+              </div>
+            </div>
+
+            <div class="side-card au-3 fade-in-up" style="animation-delay: 0.4s">
+              <div class="card-top-rule"></div>
+              <div class="sec-head"><h3>📋 Lesson List</h3></div>
+              <div style="padding:10px">
+                ${(lessons.slice(0,10)).map((l,i)=>`
+                  <a class="ch-nav-link ${l.id===cur.id?'active':''}" href="lesson.html?subject=${sid}&chapter=${cid}&lesson=${l.id}">
+                    <div class="ch-nav-n">${l.id===cur.id?'▶':(i+1)}</div>
+                    <span>${VidyaSec.sanitize(l.title)}</span>
+                  </a>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="side-card au-4 fade-in-up" style="animation-delay: 0.5s">
+              <div class="card-top-rule"></div>
+              <div class="sec-head"><h3>🚀 Quick Actions</h3></div>
+              <div style="padding:14px; display:flex; flex-direction:column; gap:8px">
+                <button class="btn btn-gh btn-sm" onclick="location.href='quiz.html?subject=${sid}&chapter=${cid}'">🧩 Take Quiz</button>
+                <button class="btn btn-gh btn-sm" onclick="location.href='lesson-selection.html?subject=${sid}&chapter=${cid}'">🔄 Switch Format</button>
+                <button class="btn btn-gh btn-sm" onclick="window.print()">🖨️ Print Notes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      App.setLast(sid, cid, cur?.title || ch.title);
+      if (cur?.id) App.markWatched(sid, cid, cur.id);
+    },
+
+    _renderNotes(n) {
+      if (!n?.content || n.content.length === 0)
+        return '<p style="color:var(--ink-4)">No notes available for this chapter.</p>';
+      return n.content.map(item => {
+        const t = VidyaSec.sanitize(item.text || '');
+        switch (item.type) {
+          case 'intro':    return `<div class="n-intro">${t}</div>`;
+          case 'heading':  return `<div class="n-head">${t}</div>`;
+          case 'text':     return `<p class="n-text">${t}</p>`;
+          case 'keypoint': return `<div class="n-kp">${t}</div>`;
+          case 'formula':  return `<div class="n-formula">📐 ${t}</div>`;
+          case 'example':
+            return `<div class="n-example">` +
+              `<div class="n-q">💡 ${VidyaSec.sanitize(item.question || '')}</div>` +
+              `<div class="n-a">→ ${VidyaSec.sanitize(item.answer || '')}</div>` +
+            `</div>`;
+          default: return `<p class="n-text">${t}</p>`;
+        }
+      }).join('');
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', ()=>LessonPage.init());
+  </script>
+  <script src="js/music.js"></script>
+</body>
+</html>
+

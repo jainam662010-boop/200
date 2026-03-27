@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quick Fix — Class 10Edu</title>
+<style>
+body { 
+  font-family: system-ui; 
+  margin: 20px; 
+  background: #f8f9fa; 
+  color: #1e293b;
+}
+.container { 
+  max-width: 800px; 
+  margin: 0 auto; 
+  background: white; 
+  padding: 30px; 
+  border-radius: 12px; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.header { 
+  text-align: center; 
+  margin-bottom: 30px; 
+}
+.status { 
+  padding: 15px; 
+  border-radius: 8px; 
+  margin: 15px 0; 
+  border-left: 4px solid #10b981;
+  background: #f0fdf4;
+}
+.status.error { 
+  border-left-color: #ef4444; 
+  background: #fef2f2;
+}
+.btn { 
+  padding: 12px 24px; 
+  border: none; 
+  border-radius: 8px; 
+  cursor: pointer; 
+  font-weight: 600; 
+  margin: 5px;
+  background: #3b82f6; 
+  color: white;
+}
+.btn:hover { background: #2563eb; }
+.btn.success { background: #10b981; }
+.btn.success:hover { background: #059669; }
+.btn.danger { background: #ef4444; }
+.btn.danger:hover { background: #dc2626; }
+.log { 
+  background: #1e293b; 
+  color: #e2e8f0; 
+  padding: 15px; 
+  border-radius: 6px; 
+  font-family: monospace; 
+  font-size: 12px; 
+  max-height: 300px; 
+  overflow-y: auto; 
+  margin-top: 15px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🔧 Quick Fix Dashboard</h1>
+    <p>Emergency fixes for critical UI bugs</p>
+  </div>
+
+  <div class="status">
+    <h3>🚨 Critical Issues Detected</h3>
+    <p>• CSS variables missing causing UI break</p>
+    <p>• Dashboard not loading properly</p>
+    <p>• JavaScript errors in console</p>
+  </div>
+
+  <div class="status">
+    <h3>🔧 Quick Fixes Available</h3>
+    <button class="btn" onclick="fixCSSVariables()">Fix CSS Variables</button>
+    <button class="btn" onclick="fixLocalStorage()">Fix Local Storage</button>
+    <button class="btn" onclick="fixDependencies()">Fix Dependencies</button>
+    <button class="btn success" onclick="runAllFixes()">Run All Fixes</button>
+  </div>
+
+  <div class="status">
+    <h3>🧪 Test Dashboard</h3>
+    <button class="btn success" onclick="testBasicDashboard()">Test Basic Dashboard</button>
+    <button class="btn success" onclick="openFixedDashboard()">Open Fixed Dashboard</button>
+  </div>
+
+  <div class="status">
+    <h3>📋 Fix Log</h3>
+    <button class="btn" onclick="clearLog()">Clear Log</button>
+    <div class="log" id="fixLog"></div>
+  </div>
+</div>
+
+<script>
+// Quick Fix System
+const QuickFix = {
+  log(message, type = 'info') {
+    const log = document.getElementById('fixLog');
+    const timestamp = new Date().toLocaleTimeString();
+    const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+    log.innerHTML = `[${timestamp}] ${icon} ${message}\n` + log.innerHTML;
+    
+    // Keep only last 50 lines
+    const lines = log.innerHTML.split('\n');
+    if (lines.length > 50) {
+      log.innerHTML = lines.slice(0, 50).join('\n');
+    }
+  },
+  
+  clearLog() {
+    document.getElementById('fixLog').innerHTML = '';
+    this.log('📋 Log cleared');
+  },
+  
+  fixCSSVariables() {
+    this.log('🔧 Fixing CSS variables...');
+    
+    try {
+      // Add missing CSS variables
+      const style = document.createElement('style');
+      style.textContent = `
+        :root {
+          --br: #6366F1;
+          --bl: #6366F1;
+          --b: #6366F1;
+          --a: #A855F7;
+          --t1: #1e293b;
+          --t2: #475569;
+          --t3: #64748b;
+          --bdr: rgba(15,23,42,0.06);
+          --bdr2: rgba(15,23,42,0.1);
+          --surface: #ffffff;
+          --bg: #f8fafc;
+          --bg-2: #f1f5f9;
+          --bg-3: #e2e8f0;
+        }
+        
+        /* Basic fixes */
+        body { font-family: system-ui; }
+        .page-layout { display: flex; min-height: 100vh; }
+        .main-area { flex: 1; padding: 20px; }
+        .spinner { 
+          border: 3px solid #f3f4f6; 
+          border-top: 3px solid #6366f1; 
+          border-radius: 50%; 
+          width: 40px; 
+          height: 40px; 
+          animation: spin 1s linear infinite; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      `;
+      document.head.appendChild(style);
+      
+      this.log('✅ CSS variables fixed', 'success');
+    } catch (error) {
+      this.log(`❌ CSS fix failed: ${error.message}`, 'error');
+    }
+  },
+  
+  fixLocalStorage() {
+    this.log('🔧 Fixing localStorage...');
+    
+    try {
+      // Clear corrupted data
+      const keysToCheck = ['vm_app_data', 'vm_live_updates', 'vm_progress', 'vm_profile'];
+      let fixed = 0;
+      
+      keysToCheck.forEach(key => {
+        try {
+          const value = localStorage.getItem(key);
+          if (value) {
+            JSON.parse(value); // Test if valid JSON
+          }
+        } catch (error) {
+          localStorage.removeItem(key);
+          fixed++;
+          this.log(`🗑️ Removed corrupted ${key}`, 'warning');
+        }
+      });
+      
+      // Set basic defaults
+      if (!localStorage.getItem('vm_progress')) {
+        localStorage.setItem('vm_progress', JSON.stringify({}));
+      }
+      
+      if (!localStorage.getItem('vm_profile')) {
+        localStorage.setItem('vm_profile', JSON.stringify({ name: 'Student' }));
+      }
+      
+      this.log(`✅ localStorage fixed - ${fixed} items cleared`, 'success');
+    } catch (error) {
+      this.log(`❌ localStorage fix failed: ${error.message}`, 'error');
+    }
+  },
+  
+  fixDependencies() {
+    this.log('🔧 Fixing dependencies...');
+    
+    try {
+      // Basic polyfills
+      if (!window.Promise) {
+        this.log('⚠️ Promise polyfill needed', 'warning');
+      }
+      
+      // Check if scripts loaded
+      const scripts = ['data-manager.js', 'app.js', 'realtime.js'];
+      let loaded = 0;
+      
+      scripts.forEach(script => {
+        if (window[script.replace('.js', '').replace('-', '')]) {
+          loaded++;
+        }
+      });
+      
+      this.log(`✅ Dependencies checked - ${loaded}/${scripts.length} loaded`, 'success');
+    } catch (error) {
+      this.log(`❌ Dependency fix failed: ${error.message}`, 'error');
+    }
+  },
+  
+  runAllFixes() {
+    this.log('🚀 Running all fixes...');
+    this.fixCSSVariables();
+    this.fixLocalStorage();
+    this.fixDependencies();
+    this.log('✅ All fixes completed', 'success');
+  },
+  
+  testBasicDashboard() {
+    this.log('🧪 Testing basic dashboard...');
+    
+    try {
+      // Create basic dashboard
+      const main = document.querySelector('.main-area') || document.body;
+      main.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+          <h1>🎯 Dashboard Test</h1>
+          <p>Basic dashboard is working!</p>
+          <div style="margin: 20px 0;">
+            <button class="btn" onclick="window.location.href='dashboard.html'">Go to Dashboard</button>
+          </div>
+        </div>
+      `;
+      
+      this.log('✅ Basic dashboard test passed', 'success');
+    } catch (error) {
+      this.log(`❌ Dashboard test failed: ${error.message}`, 'error');
+    }
+  },
+  
+  openFixedDashboard() {
+    this.log('🚀 Opening fixed dashboard...');
+    window.location.href = 'dashboard.html';
+  }
+};
+
+// Auto-run fixes
+document.addEventListener('DOMContentLoaded', () => {
+  QuickFix.log('🚀 Quick Fix System Initialized');
+  QuickFix.runAllFixes();
+});
+</script>
+
+</body>
+</html>

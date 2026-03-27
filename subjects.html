@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Subjects — Class 10Edu</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/mobile.css">
+</head>
+<body>
+<div id="nb"></div>
+<div class="page-layout">
+  <div id="sb"></div>
+  <main class="main-area" id="mainArea">
+    <div style="display:flex;align-items:center;justify-content:center;padding:80px 0">
+      <div class="spinner"></div>
+    </div>
+  </main>
+</div>
+<div id="bottomNav"></div>
+<div class="page-watermark"></div>
+
+<!-- Scripts -->
+<script src="js/data-manager.js"></script>
+<script src="js/realtime.js"></script>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+
+<script>
+// Subjects page rendering logic
+const SubjectsPage = {
+  async render() {
+    try {
+      console.log('📚 Rendering subjects page...');
+      
+      // Load data
+      const data = await App.loadData();
+      const progress = App.getProgress();
+      const profile = App.getProfile();
+      
+      if (!data || !data.subjects) {
+        throw new Error('No subjects data available');
+      }
+      
+      // Calculate overall progress
+      const overallStats = this.calculateOverallStats(data.subjects, progress);
+      
+      // Render page
+      const main = document.getElementById('mainArea');
+      main.innerHTML = `
+        <!-- Mobile-First Subjects Page -->
+        <div class="subjects-page page-animate">
+          
+          <!-- Header -->
+          <div class="page-head">
+            <h1>Subjects</h1>
+            <p class="page-subtitle">Choose a subject to continue learning</p>
+          </div>
+
+          <!-- Overall Progress Card -->
+          <div class="overall-progress-card">
+            <div class="progress-header">
+              <span class="progress-title">Overall Progress</span>
+              <span class="progress-percentage">${overallStats.percentage}%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${overallStats.percentage}%"></div>
+            </div>
+            <div class="progress-stats">
+              <span>${overallStats.completed} of ${overallStats.total} chapters completed</span>
+              <span>🔥 ${overallStats.streak} day streak</span>
+            </div>
+          </div>
+
+          <!-- Filter Tabs -->
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all">All Subjects</button>
+            <button class="filter-tab" data-filter="in-progress">In Progress</button>
+            <button class="filter-tab" data-filter="completed">Completed</button>
+          </div>
+
+          <!-- Subjects Grid -->
+          <div class="subjects-grid" id="subjectsGrid">
+            ${data.subjects.map(subject => {
+              const subjectProgress = this.getSubjectProgress(subject.id, progress);
+              const isCompleted = subjectProgress.percentage === 100;
+              const inProgress = subjectProgress.percentage > 0 && !isCompleted;
+              
+              return `
+                <div class="subject-card-mobile touchable ${this.getFilterClass(isCompleted, inProgress)}" 
+                     data-subject-id="${subject.id}"
+                     onclick="location.href='subject.html?id=${subject.id}'">
+                  
+                  <div class="subject-header">
+                    <div class="subject-icon" style="background: ${subject.gradient || subject.bg}; color: ${subject.color};">
+                      ${subject.icon}
+                    </div>
+                    <div class="subject-info">
+                      <h3 class="subject-name">${VidyaSec.sanitize(subject.name)}</h3>
+                      <p class="subject-description">${VidyaSec.sanitize(subject.description || '')}</p>
+                    </div>
+                  </div>
+
+                  <div class="subject-progress">
+                    <div class="progress-row">
+                      <span class="progress-text">${subjectProgress.percentage}% Complete</span>
+                      <span class="progress-count">${subjectProgress.completed}/${subjectProgress.total}</span>
+                    </div>
+                    <div class="progress-bar">
+                      <div class="progress-fill" style="width: ${subjectProgress.percentage}%"></div>
+                    </div>
+                  </div>
+
+                  <div class="subject-footer">
+                    ${isCompleted ? 
+                      '<span class="status-badge completed">✅ Completed</span>' : 
+                      inProgress ? 
+                      '<span class="status-badge in-progress">📚 In Progress</span>' : 
+                      '<span class="status-badge not-started">🆕 Not Started</span>'
+                    }
+                    <button class="btn btn-s">View Chapters →</button>
+                  </div>
+
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Study Tips -->
+          <div class="study-tips-card">
+            <h3>📖 Study Tips</h3>
+            <ul>
+              <li>Complete chapters in order for better understanding</li>
+              <li>Take notes while watching video lessons</li>
+              <li>Practice quizzes to test your knowledge</li>
+              <li>Review previous chapters regularly</li>
+            </ul>
+          </div>
+
+        </div>
+      `;
+      
+      // Setup filter tabs
+      this.setupFilterTabs();
+      
+      // Apply theme
+      App.applyMode();
+      
+      // Initialize real-time sync
+      App.initRealTimeSync();
+      
+      console.log('✅ Subjects page rendered successfully');
+      
+    } catch (error) {
+      console.error('❌ Subjects page render failed:', error);
+      App.toast('Failed to load subjects', '❌');
+      
+      // Show error state
+      const main = document.getElementById('mainArea');
+      main.innerHTML = `
+        <div class="error-state">
+          <div class="error-icon">😔</div>
+          <h2>Oops! Something went wrong</h2>
+          <p>We couldn't load the subjects. Please try again.</p>
+          <button class="btn btn-b" onclick="location.reload()">Try Again</button>
+        </div>
+      `;
+    }
+  },
+
+  // Calculate overall statistics
+  calculateOverallStats(subjects, progress) {
+    let totalChapters = 0;
+    let completedChapters = 0;
+    
+    subjects.forEach(subject => {
+      if (subject.chapters) {
+        totalChapters += subject.chapters.length;
+        const subjectProgress = progress[subject.id] || {};
+        completedChapters += (subjectProgress.done || []).length;
+      }
+    });
+    
+    const percentage = totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0;
+    const streak = parseInt(localStorage.getItem('vm_streak') || '0');
+    
+    return {
+      total: totalChapters,
+      completed: completedChapters,
+      percentage,
+      streak
+    };
+  },
+
+  // Get subject progress
+  getSubjectProgress(subjectId, progress) {
+    const subjectProgress = progress[subjectId] || {};
+    const completed = (subjectProgress.done || []).length;
+    
+    // Find subject to get total chapters
+    const data = window.DataManager?.cache || { subjects: [] };
+    const subject = data.subjects.find(s => s.id === subjectId);
+    const total = subject?.chapters?.length || 0;
+    
+    return {
+      completed,
+      total,
+      percentage: total > 0 ? Math.round((completed / total) * 100) : 0
+    };
+  },
+
+  // Get filter class for subject
+  getFilterClass(isCompleted, inProgress) {
+    if (isCompleted) return 'filter-completed';
+    if (inProgress) return 'filter-in-progress';
+    return 'filter-all';
+  },
+
+  // Setup filter tabs
+  setupFilterTabs() {
+    const tabs = document.querySelectorAll('.filter-tab');
+    const subjects = document.querySelectorAll('.subject-card-mobile');
+    
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        // Update active tab
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        // Filter subjects
+        const filter = tab.dataset.filter;
+        subjects.forEach(subject => {
+          if (filter === 'all' || subject.classList.contains(`filter-${filter}`)) {
+            subject.style.display = 'block';
+          } else {
+            subject.style.display = 'none';
+          }
+        });
+      });
+    });
+  },
+
+  // Refresh page with new data
+  async refresh() {
+    console.log('🔄 Refreshing subjects page...');
+    await this.render();
+    App.toast('Subjects updated', '🔄');
+  }
+};
+
+// Initialize subjects page when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // Initialize app
+    await App.init();
+    
+    // Check authentication
+    if (!App.hasProfile()) {
+      location.href = 'dashboard.html';
+      return;
+    }
+    
+    // Initialize page
+    App.initPage('subjects');
+    App.renderBottomNav('subjects');
+    
+    // Render subjects
+    await SubjectsPage.render();
+    
+    // Setup page-specific refresh
+    App.refreshCurrentPage = () => SubjectsPage.refresh();
+    
+  } catch (error) {
+    console.error('❌ Subjects page initialization failed:', error);
+    App.toast('Page initialization failed', '❌');
+  }
+});
+</script>
+
+</body>
+</html>

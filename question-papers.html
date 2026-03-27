@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Question Papers — Class 10Edu</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.qp-grid { display: grid; grid-template-columns: 300px 1fr; gap: 32px; align-items: flex-start; }
+.qp-list-card { position: sticky; top: calc(var(--nav-h) + 24px); }
+.qp-item {
+  padding: 16px; border-radius: 14px; cursor: pointer; transition: all var(--t);
+  border: 1px solid var(--border);
+}
+.qp-item:hover { background: var(--bg-2); border-color: var(--accent); }
+.qp-item.active { background: var(--accent-bg); border-color: var(--accent); }
+
+.qp-editor-area {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 40px;
+}
+</style>
+</head>
+<body>
+<div id="nb"></div>
+<div class="page-layout">
+  <div id="sb"></div>
+  <main class="main-area" id="mainArea">
+    <div class="page-head au">
+      <h1 style="margin:0">Question Paper Generator</h1>
+      <p class="subtitle" style="margin-top:8px">Create, manage, and export custom question papers for your students.</p>
+    </div>
+
+    <div class="qp-grid au-1">
+      <div class="qp-list-card premium-card" style="padding:24px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
+          <h3 style="margin:0">My Papers</h3>
+          <button class="btn btn-primary btn-sm" onclick="QP.newPaper()">+ New</button>
+        </div>
+        <div id="qpList" style="display:flex; flex-direction:column; gap:12px">
+          <!-- Paper list will be rendered here -->
+        </div>
+      </div>
+
+      <div class="qp-editor-area" id="qpEditor">
+        <!-- Editor will be rendered here -->
+      </div>
+    </div>
+
+  </main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  App.initPage('question-papers');
+  QP.init();
+});
+
+const QP = {
+  data: { papers: [] },
+  activePaper: -1,
+
+  init() {
+    this.load();
+    this.renderPaperList();
+    this.renderEditor();
+  },
+
+  load() {
+    const saved = localStorage.getItem('vm_question_papers');
+    if (saved) {
+      this.data = JSON.parse(saved);
+    }
+  },
+
+  save() {
+    localStorage.setItem('vm_question_papers', JSON.stringify(this.data));
+  },
+
+  newPaper() {
+    const title = prompt("Enter a title for the new paper:", `New Paper ${this.data.papers.length + 1}`);
+    if (!title) return;
+    this.data.papers.push({ title: title, questions: [] });
+    this.activePaper = this.data.papers.length - 1;
+    this.save();
+    this.renderPaperList();
+    this.renderEditor();
+  },
+
+  selectPaper(index) {
+    this.activePaper = index;
+    this.renderPaperList();
+    this.renderEditor();
+  },
+
+  renderPaperList() {
+    const listEl = document.getElementById('qpList');
+    if (!listEl) return;
+    listEl.innerHTML = this.data.papers.map((p, i) => `
+      <div class="qp-item ${i === this.activePaper ? 'active' : ''}" onclick="QP.selectPaper(${i})">
+        <div style="font-weight:800">${VidyaSec.sanitize(p.title)}</div>
+        <div style="font-size:0.8rem; color:var(--ink-4)">${p.questions.length} questions</div>
+      </div>
+    `).join('');
+  },
+
+  renderEditor() {
+    const editorEl = document.getElementById('qpEditor');
+    if (!editorEl) return;
+
+    if (this.activePaper === -1) {
+      editorEl.innerHTML = `<div style="text-align:center; padding: 64px 0">
+        <div style="font-size:48px; margin-bottom:16px">✍️</div>
+        <h2>No Paper Selected</h2>
+        <p style="color:var(--ink-3)">Select a paper from the list or create a new one to start.</p>
+      </div>`;
+      return;
+    }
+
+    const paper = this.data.papers[this.activePaper];
+    editorEl.innerHTML = `
+      <h2 style="margin-bottom:32px">${VidyaSec.sanitize(paper.title)}</h2>
+      <div id="questionContainer">
+        ${paper.questions.map((q, i) => this.renderQuestion(q, i)).join('')}
+      </div>
+      <button class="btn btn-secondary" onclick="QP.addQuestion()">+ Add Question</button>
+    `;
+  },
+  
+  renderQuestion(q, index) {
+    return `<div class="premium-card" style="padding:24px; margin-bottom:24px">
+      <div class="fg">
+        <label>Question ${index + 1}</label>
+        <input class="fc" value="${VidyaSec.sanitize(q.text || '')}" onchange="QP.updateQuestion(${index}, 'text', this.value)">
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px">
+        <div class="fg"><label>Option A</label><input class="fc" value="${VidyaSec.sanitize(q.a || '')}" onchange="QP.updateQuestion(${index}, 'a', this.value)"></div>
+        <div class="fg"><label>Option B</label><input class="fc" value="${VidyaSec.sanitize(q.b || '')}" onchange="QP.updateQuestion(${index}, 'b', this.value)"></div>
+        <div class="fg"><label>Option C</label><input class="fc" value="${VidyaSec.sanitize(q.c || '')}" onchange="QP.updateQuestion(${index}, 'c', this.value)"></div>
+        <div class="fg"><label>Option D</label><input class="fc" value="${VidyaSec.sanitize(q.d || '')}" onchange="QP.updateQuestion(${index}, 'd', this.value)"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px">
+        <div class="fg" style="margin:0">
+          <label>Correct Answer</label>
+          <select class="fc" onchange="QP.updateQuestion(${index}, 'ans', this.value)">
+            <option ${q.ans === 'a' ? 'selected' : ''} value="a">A</option>
+            <option ${q.ans === 'b' ? 'selected' : ''} value="b">B</option>
+            <option ${q.ans === 'c' ? 'selected' : ''} value="c">C</option>
+            <option ${q.ans === 'd' ? 'selected' : ''} value="d">D</option>
+          </select>
+        </div>
+        <button class="btn btn-secondary" style="color:#EF4444" onclick="QP.removeQuestion(${index})">Remove</button>
+      </div>
+    </div>`;
+  },
+
+  addQuestion() {
+    const paper = this.data.papers[this.activePaper];
+    if (!paper) return;
+    paper.questions.push({ text: '', a:'', b:'', c:'', d:'', ans:'a' });
+    this.save();
+    this.renderEditor();
+  },
+
+  updateQuestion(qIndex, field, value) {
+    const paper = this.data.papers[this.activePaper];
+    if (!paper || !paper.questions[qIndex]) return;
+    paper.questions[qIndex][field] = value;
+    this.save();
+  },
+
+  removeQuestion(qIndex) {
+    const paper = this.data.papers[this.activePaper];
+    if (!paper) return;
+    paper.questions.splice(qIndex, 1);
+    this.save();
+    this.renderEditor();
+  }
+};
+
+</script>
+</body>
+</html>

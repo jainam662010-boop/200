@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Saved — Class 10Edu</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/mobile.css">
+<style>
+/* Bookmarks-specific styles */
+.bookmarks-header { text-align:center; padding:24px 0; }
+.bookmarks-stats { display:flex; justify-content:center; gap:24px; margin:20px 0; }
+.bookmark-stat { text-align:center; }
+.stat-value { font-size:1.8rem; font-weight:700; color:var(--bl); }
+.stat-label { font-size:0.8rem; color:var(--t3); }
+
+.filter-tabs { display:flex; gap:8px; margin-bottom:20px; overflow-x:auto; padding-bottom:4px; }
+.filter-tab { padding:8px 16px; border:none; background:var(--bg2); border-radius:20px; font-size:0.85rem; font-weight:600; color:var(--t3); cursor:pointer; transition:all .15s; white-space:nowrap; }
+.filter-tab:hover { background:var(--bg3); color:var(--t2); }
+.filter-tab.active { background:var(--bl); color:white; }
+
+.bookmarks-grid { display:grid; gap:16px; }
+.bookmark-card { background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--r); padding:16px; transition:all .15s; }
+.bookmark-card:hover { border-color:var(--bdr2); transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+
+.bookmark-header { display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; }
+.bookmark-icon { width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+.bookmark-info { flex:1; }
+.bookmark-title { font-weight:600; color:var(--t1); margin:0 0 4px; }
+.bookmark-meta { font-size:0.8rem; color:var(--t3); }
+
+.bookmark-content { margin-bottom:12px; }
+.bookmark-description { font-size:0.9rem; color:var(--t2); line-height:1.4; margin-bottom:8px; }
+.bookmark-tags { display:flex; gap:6px; flex-wrap:wrap; }
+.bookmark-tag { padding:4px 8px; background:var(--bg3); border-radius:12px; font-size:0.7rem; color:var(--t3); }
+
+.bookmark-actions { display:flex; gap:8px; align-items:center; }
+.btn-remove { padding:6px 12px; background:#ef4444; color:white; border:none; border-radius:6px; font-size:0.8rem; cursor:pointer; }
+.btn-remove:hover { background:#dc2626; }
+
+.empty-state { text-align:center; padding:60px 20px; }
+.empty-icon { font-size:3rem; margin-bottom:16px; }
+.empty-title { font-size:1.2rem; font-weight:600; color:var(--t1); margin-bottom:8px; }
+.empty-text { color:var(--t3); margin-bottom:20px; }
+
+.sort-options { display:flex; gap:8px; margin-bottom:16px; }
+.sort-btn { padding:6px 12px; border:1px solid var(--bdr); background:transparent; border-radius:6px; font-size:0.8rem; cursor:pointer; transition:all .15s; }
+.sort-btn:hover { border-color:var(--bdr2); }
+.sort-btn.active { background:var(--bl); color:white; border-color:var(--bl); }
+
+@media(max-width:480px) {
+  .bookmarks-stats { gap:16px; }
+  .filter-tabs { gap:6px; }
+  .bookmark-actions { flex-direction:column; align-items:stretch; }
+}
+</style>
+</head>
+<body>
+<div id="nb"></div>
+<div class="page-layout">
+  <div id="sb"></div>
+  <main class="main-area" id="mainArea">
+    <div style="display:flex;align-items:center;justify-content:center;padding:80px 0">
+      <div class="spinner"></div>
+    </div>
+  </main>
+</div>
+<div id="bottomNav"></div>
+<div class="page-watermark"></div>
+
+<!-- Scripts -->
+<script src="js/data-manager.js"></script>
+<script src="js/realtime.js"></script>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+
+<script>
+// Bookmarks page rendering logic
+const BookmarksPage = {
+  bookmarks: [],
+  filteredBookmarks: [],
+  currentFilter: 'all',
+  currentSort: 'recent',
+
+  async render() {
+    try {
+      console.log('🔖 Rendering bookmarks page...');
+      
+      // Load data
+      const data = await App.loadData();
+      const bookmarks = App.getBookmarks();
+      const progress = App.getProgress();
+      
+      if (!data) {
+        throw new Error('No data available');
+      }
+      
+      // Process bookmarks
+      this.bookmarks = await this.processBookmarks(bookmarks, data, progress);
+      this.filteredBookmarks = [...this.bookmarks];
+      
+      // Calculate statistics
+      const stats = this.calculateStats();
+      
+      // Render page
+      const main = document.getElementById('mainArea');
+      main.innerHTML = `
+        <!-- Mobile-First Bookmarks Page -->
+        <div class="bookmarks-page page-animate">
+          
+          <!-- Header -->
+          <div class="bookmarks-header">
+            <h1>🔖 Saved Content</h1>
+            <p>Your personal collection of bookmarked lessons and chapters</p>
+          </div>
+
+          <!-- Statistics -->
+          <div class="bookmarks-stats">
+            <div class="bookmark-stat">
+              <div class="stat-value">${stats.total}</div>
+              <div class="stat-label">Total Bookmarks</div>
+            </div>
+            <div class="bookmark-stat">
+              <div class="stat-value">${stats.subjects}</div>
+              <div class="stat-label">Subjects</div>
+            </div>
+            <div class="bookmark-stat">
+              <div class="stat-value">${stats.completed}</div>
+              <div class="stat-label">Completed</div>
+            </div>
+          </div>
+
+          <!-- Filter Tabs -->
+          <div class="filter-tabs">
+            <button class="filter-tab ${this.currentFilter === 'all' ? 'active' : ''}" 
+                    data-filter="all" onclick="BookmarksPage.filterBookmarks('all')">
+              All (${stats.total})
+            </button>
+            <button class="filter-tab ${this.currentFilter === 'chapters' ? 'active' : ''}" 
+                    data-filter="chapters" onclick="BookmarksPage.filterBookmarks('chapters')">
+              Chapters (${stats.chapters})
+            </button>
+            <button class="filter-tab ${this.currentFilter === 'lessons' ? 'active' : ''}" 
+                    data-filter="lessons" onclick="BookmarksPage.filterBookmarks('lessons')">
+              Lessons (${stats.lessons})
+            </button>
+            <button class="filter-tab ${this.currentFilter === 'completed' ? 'active' : ''}" 
+                    data-filter="completed" onclick="BookmarksPage.filterBookmarks('completed')">
+              Completed (${stats.completed})
+            </button>
+            <button class="filter-tab ${this.currentFilter === 'in-progress' ? 'active' : ''}" 
+                    data-filter="in-progress" onclick="BookmarksPage.filterBookmarks('in-progress')">
+              In Progress (${stats.inProgress})
+            </button>
+          </div>
+
+          <!-- Sort Options -->
+          <div class="sort-options">
+            <button class="sort-btn ${this.currentSort === 'recent' ? 'active' : ''}" 
+                    onclick="BookmarksPage.sortBookmarks('recent')">
+              🕐 Recent
+            </button>
+            <button class="sort-btn ${this.currentSort === 'subject' ? 'active' : ''}" 
+                    onclick="BookmarksPage.sortBookmarks('subject')">
+              📚 Subject
+            </button>
+            <button class="sort-btn ${this.currentSort === 'progress' ? 'active' : ''}" 
+                    onclick="BookmarksPage.sortBookmarks('progress')">
+              📊 Progress
+            </button>
+            <button class="sort-btn ${this.currentSort === 'title' ? 'active' : ''}" 
+                    onclick="BookmarksPage.sortBookmarks('title')">
+              🔤 Title
+            </button>
+          </div>
+
+          <!-- Bookmarks Grid -->
+          <div class="bookmarks-grid" id="bookmarksGrid">
+            ${this.renderBookmarks()}
+          </div>
+
+        </div>
+      `;
+      
+      // Apply theme
+      App.applyMode();
+      
+      // Initialize real-time sync
+      App.initRealTimeSync();
+      
+      console.log('✅ Bookmarks page rendered successfully');
+      
+    } catch (error) {
+      console.error('❌ Bookmarks page render failed:', error);
+      App.toast('Failed to load bookmarks', '❌');
+      
+      // Show error state
+      const main = document.getElementById('mainArea');
+      main.innerHTML = `
+        <div class="error-state">
+          <div class="error-icon">😔</div>
+          <h2>Oops! Something went wrong</h2>
+          <p>We couldn't load your bookmarks. Please try again.</p>
+          <button class="btn btn-b" onclick="location.reload()">Try Again</button>
+        </div>
+      `;
+    }
+  },
+
+  // Process bookmarks into rich objects
+  async processBookmarks(bookmarks, data, progress) {
+    const processed = [];
+    
+    for (const bookmark of bookmarks) {
+      const [subjectId, chapterId] = bookmark.split('::');
+      
+      // Find subject
+      const subject = data.subjects.find(s => s.id === subjectId);
+      if (!subject) continue;
+      
+      // Find chapter
+      const chapter = subject.chapters?.find(ch => ch.id === chapterId);
+      if (!chapter) continue;
+      
+      // Get progress info
+      const isCompleted = App.isDone(subjectId, chapterId);
+      const subjectProgress = progress[subjectId] || {};
+      const quizScores = subjectProgress.scores || {};
+      const quizScore = quizScores[chapterId]?.pct || 0;
+      
+      processed.push({
+        id: bookmark,
+        subjectId,
+        chapterId,
+        subject,
+        chapter,
+        isCompleted,
+        quizScore,
+        bookmarkedAt: this.getBookmarkTimestamp(bookmark),
+        type: 'chapter'
+      });
+    }
+    
+    return processed;
+  },
+
+  // Get bookmark timestamp (mock implementation)
+  getBookmarkTimestamp(bookmark) {
+    // In a real implementation, this would be stored with the bookmark
+    return Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000; // Random time in last 30 days
+  },
+
+  // Calculate statistics
+  calculateStats() {
+    const stats = {
+      total: this.filteredBookmarks.length,
+      subjects: new Set(this.filteredBookmarks.map(b => b.subjectId)).size,
+      chapters: this.filteredBookmarks.filter(b => b.type === 'chapter').length,
+      lessons: this.filteredBookmarks.filter(b => b.type === 'lesson').length,
+      completed: this.filteredBookmarks.filter(b => b.isCompleted).length,
+      inProgress: this.filteredBookmarks.filter(b => !b.isCompleted).length
+    };
+    
+    return stats;
+  },
+
+  // Render bookmarks
+  renderBookmarks() {
+    if (this.filteredBookmarks.length === 0) {
+      return `
+        <div class="empty-state">
+          <div class="empty-icon">🔖</div>
+          <h3 class="empty-title">No bookmarks yet</h3>
+          <p class="empty-text">Start bookmarking chapters and lessons to build your personal collection</p>
+          <button class="btn btn-b" onclick="location.href='subjects.html'">
+            Explore Subjects →
+          </button>
+        </div>
+      `;
+    }
+    
+    return this.filteredBookmarks.map(bookmark => `
+      <div class="bookmark-card" data-bookmark-id="${bookmark.id}">
+        <div class="bookmark-header">
+          <div class="bookmark-icon" style="background: ${bookmark.subject.gradient || bookmark.subject.bg}; color: ${bookmark.subject.color};">
+            ${bookmark.subject.icon}
+          </div>
+          <div class="bookmark-info">
+            <h3 class="bookmark-title">${VidyaSec.sanitize(bookmark.chapter.title)}</h3>
+            <p class="bookmark-meta">
+              ${VidyaSec.sanitize(bookmark.subject.name)} • Chapter ${bookmark.chapterId}
+              ${bookmark.isCompleted ? ' • ✅ Completed' : ' • 📚 In Progress'}
+            </p>
+          </div>
+        </div>
+        
+        <div class="bookmark-content">
+          <p class="bookmark-description">
+            ${VidyaSec.sanitize(bookmark.chapter.description || 'No description available')}
+          </p>
+          <div class="bookmark-tags">
+            <span class="bookmark-tag">${bookmark.lessons || 0} lessons</span>
+            <span class="bookmark-tag">📝 ${bookmark.chapter.notes?.length || 0} notes</span>
+            ${bookmark.chapter.quiz ? '<span class="bookmark-tag">📝 Quiz</span>' : ''}
+            ${bookmark.quizScore > 0 ? `<span class="bookmark-tag">📊 ${bookmark.quizScore}%</span>` : ''}
+          </div>
+        </div>
+        
+        <div class="bookmark-actions">
+          <button class="btn btn-s" onclick="location.href='chapter.html?subject=${bookmark.subjectId}&chapter=${bookmark.chapterId}'">
+            📖 Open
+          </button>
+          <button class="btn btn-s btn-outline" onclick="BookmarksPage.shareBookmark('${bookmark.id}')">
+            📤 Share
+          </button>
+          <button class="btn-remove" onclick="BookmarksPage.removeBookmark('${bookmark.id}')">
+            🗑️ Remove
+          </button>
+        </div>
+      </div>
+    `).join('');
+  },
+
+  // Filter bookmarks
+  filterBookmarks(filter) {
+    this.currentFilter = filter;
+    
+    switch (filter) {
+      case 'all':
+        this.filteredBookmarks = [...this.bookmarks];
+        break;
+      case 'chapters':
+        this.filteredBookmarks = this.bookmarks.filter(b => b.type === 'chapter');
+        break;
+      case 'lessons':
+        this.filteredBookmarks = this.bookmarks.filter(b => b.type === 'lesson');
+        break;
+      case 'completed':
+        this.filteredBookmarks = this.bookmarks.filter(b => b.isCompleted);
+        break;
+      case 'in-progress':
+        this.filteredBookmarks = this.bookmarks.filter(b => !b.isCompleted);
+        break;
+    }
+    
+    // Apply current sort
+    this.sortBookmarks(this.currentSort);
+    
+    // Update UI
+    this.updateBookmarksDisplay();
+  },
+
+  // Sort bookmarks
+  sortBookmarks(sortBy) {
+    this.currentSort = sortBy;
+    
+    switch (sortBy) {
+      case 'recent':
+        this.filteredBookmarks.sort((a, b) => b.bookmarkedAt - a.bookmarkedAt);
+        break;
+      case 'subject':
+        this.filteredBookmarks.sort((a, b) => a.subject.name.localeCompare(b.subject.name));
+        break;
+      case 'progress':
+        this.filteredBookmarks.sort((a, b) => {
+          if (a.isCompleted === b.isCompleted) {
+            return b.quizScore - a.quizScore;
+          }
+          return a.isCompleted ? 1 : -1;
+        });
+        break;
+      case 'title':
+        this.filteredBookmarks.sort((a, b) => a.chapter.title.localeCompare(b.chapter.title));
+        break;
+    }
+    
+    // Update UI
+    this.updateBookmarksDisplay();
+  },
+
+  // Update bookmarks display
+  updateBookmarksDisplay() {
+    const grid = document.getElementById('bookmarksGrid');
+    if (grid) {
+      grid.innerHTML = this.renderBookmarks();
+    }
+    
+    // Update filter tabs
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.filter === this.currentFilter);
+    });
+    
+    // Update sort buttons
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.textContent.toLowerCase().includes(this.currentSort));
+    });
+  },
+
+  // Remove bookmark
+  removeBookmark(bookmarkId) {
+    if (confirm('Are you sure you want to remove this bookmark?')) {
+      const [subjectId, chapterId] = bookmarkId.split('::');
+      App.toggleBookmark(subjectId, chapterId);
+      
+      // Update local data
+      this.bookmarks = this.bookmarks.filter(b => b.id !== bookmarkId);
+      this.filteredBookmarks = this.filteredBookmarks.filter(b => b.id !== bookmarkId);
+      
+      // Update display
+      this.updateBookmarksDisplay();
+      
+      App.toast('Bookmark removed', '🗑️');
+    }
+  },
+
+  // Share bookmark
+  shareBookmark(bookmarkId) {
+    const bookmark = this.bookmarks.find(b => b.id === bookmarkId);
+    if (!bookmark) return;
+    
+    const shareText = `📚 Check out this chapter: ${bookmark.chapter.title}\n` +
+                     `Subject: ${bookmark.subject.name}\n` +
+                     `Progress: ${bookmark.isCompleted ? 'Completed ✅' : 'In Progress 📚'}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: bookmark.chapter.title,
+        text: shareText,
+        url: `chapter.html?subject=${bookmark.subjectId}&chapter=${bookmark.chapterId}`
+      });
+    } else {
+      // Fallback - copy to clipboard
+      navigator.clipboard.writeText(shareText);
+      App.toast('Link copied to clipboard', '📋');
+    }
+  },
+
+  // Export bookmarks
+  exportBookmarks() {
+    try {
+      const exportData = {
+        bookmarks: this.bookmarks.map(b => ({
+          subject: b.subject.name,
+          chapter: b.chapter.title,
+          url: `chapter.html?subject=${b.subjectId}&chapter=${b.chapterId}`,
+          bookmarkedAt: new Date(b.bookmarkedAt).toISOString(),
+          isCompleted: b.isCompleted,
+          quizScore: b.quizScore
+        })),
+        exportedAt: new Date().toISOString(),
+        total: this.bookmarks.length
+      };
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bookmarks-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      App.toast('Bookmarks exported successfully', '📤');
+    } catch (error) {
+      console.error('Export failed:', error);
+      App.toast('Export failed', '❌');
+    }
+  },
+
+  // Refresh page with new data
+  async refresh() {
+    console.log('🔄 Refreshing bookmarks page...');
+    await this.render();
+    App.toast('Bookmarks updated', '🔄');
+  }
+};
+
+// Initialize bookmarks page when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // Initialize app
+    await App.init();
+    
+    // Check authentication
+    if (!App.hasProfile()) {
+      location.href = 'dashboard.html';
+      return;
+    }
+    
+    // Initialize page
+    App.initPage('bookmarks');
+    App.renderBottomNav('bookmarks');
+    
+    // Render bookmarks
+    await BookmarksPage.render();
+    
+    // Setup page-specific refresh
+    App.refreshCurrentPage = () => BookmarksPage.refresh();
+    
+  } catch (error) {
+    console.error('❌ Bookmarks page initialization failed:', error);
+    App.toast('Page initialization failed', '❌');
+  }
+});
+</script>
+
+</body>
+</html>

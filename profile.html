@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Profile — Class 10Edu</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/mobile.css">
+<style>
+/* Profile-specific styles */
+.profile-header { text-align:center; padding:32px 0 24px; }
+.profile-avatar { width:80px; height:80px; border-radius:50%; background:var(--sh-g,linear-gradient(135deg,var(--b),var(--a))); display:flex; align-items:center; justify-content:center; font-size:2rem; margin:0 auto 16px; }
+.profile-name { font-size:1.4rem; font-weight:700; margin:0 0 4px; }
+.profile-email { font-size:0.9rem; color:var(--t3); margin:0; }
+
+.stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+.stat-card { background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--r); padding:16px; text-align:center; }
+.stat-value { font-size:1.5rem; font-weight:700; color:var(--bl); margin-bottom:4px; }
+.stat-label { font-size:0.8rem; color:var(--t3); }
+
+.settings-section { background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--r); padding:20px; margin-bottom:16px; }
+.settings-title { font-size:1.1rem; font-weight:600; margin:0 0 16px; }
+.setting-item { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--bdr); }
+.setting-item:last-child { border-bottom:none; }
+.setting-label { font-size:0.9rem; color:var(--t1); }
+.setting-control { display:flex; align-items:center; gap:8px; }
+
+.switch { position:relative; width:44px; height:24px; background:var(--bdr); border-radius:12px; cursor:pointer; transition:background .2s; }
+.switch.active { background:var(--bl); }
+.switch::after { content:''; position:absolute; top:2px; left:2px; width:20px; height:20px; background:white; border-radius:50%; transition:transform .2s; }
+.switch.active::after { transform:translateX(20px); }
+
+.action-buttons { display:flex; flex-direction:column; gap:12px; }
+.btn-danger { background:#ef4444; color:white; }
+.btn-danger:hover { background:#dc2626; }
+
+.achievements-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:12px; margin-top:16px; }
+.achievement { background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--r); padding:12px; text-align:center; }
+.achievement-icon { font-size:2rem; margin-bottom:8px; }
+.achievement-name { font-size:0.8rem; font-weight:600; color:var(--t1); }
+.achievement-desc { font-size:0.7rem; color:var(--t3); margin-top:4px; }
+
+@media(max-width:480px) {
+  .stats-grid { grid-template-columns:1fr; gap:12px; }
+  .achievements-grid { grid-template-columns:repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+<div id="nb"></div>
+<div class="page-layout">
+  <div id="sb"></div>
+  <main class="main-area" id="mainArea">
+    <div style="display:flex;align-items:center;justify-content:center;padding:80px 0">
+      <div class="spinner"></div>
+    </div>
+  </main>
+</div>
+<div id="bottomNav"></div>
+<div class="page-watermark"></div>
+
+<!-- Scripts -->
+<script src="js/data-manager.js"></script>
+<script src="js/realtime.js"></script>
+<script src="js/app.js"></script>
+<script src="js/security.js"></script>
+<script src="js/theme_todo.js"></script>
+
+<script>
+// Profile page rendering logic
+const ProfilePage = {
+  currentProfile: null,
+  achievements: [],
+
+  async render() {
+    try {
+      console.log('👤 Rendering profile page...');
+      
+      // Load data
+      const profile = App.getProfile();
+      const progress = App.getProgress();
+      const data = await App.loadData();
+      
+      if (!profile) {
+        throw new Error('No profile found');
+      }
+      
+      this.currentProfile = profile;
+      
+      // Calculate statistics
+      const stats = this.calculateStats(data, progress);
+      
+      // Load achievements
+      this.achievements = this.loadAchievements(stats);
+      
+      // Render page
+      const main = document.getElementById('mainArea');
+      main.innerHTML = `
+        <!-- Mobile-First Profile Page -->
+        <div class="profile-page page-animate">
+          
+          <!-- Profile Header -->
+          <div class="profile-header">
+            <div class="profile-avatar">
+              ${profile.name ? profile.name.charAt(0).toUpperCase() : '👤'}
+            </div>
+            <h1 class="profile-name">${VidyaSec.sanitize(profile.name || 'Student')}</h1>
+            <p class="profile-email">${VidyaSec.sanitize(profile.email || 'student@class10edu.com')}</p>
+          </div>
+
+          <!-- Statistics Grid -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value">${stats.totalChapters}</div>
+              <div class="stat-label">Total Chapters</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${stats.completedChapters}</div>
+              <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${stats.streak}</div>
+              <div class="stat-label">Day Streak</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${stats.quizAverage}%</div>
+              <div class="stat-label">Quiz Average</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${stats.studyTime}h</div>
+              <div class="stat-label">Study Time</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${stats.bookmarks}</div>
+              <div class="stat-label">Bookmarks</div>
+            </div>
+          </div>
+
+          <!-- Achievements Section -->
+          <div class="settings-section">
+            <h2 class="settings-title">🏆 Achievements</h2>
+            <div class="achievements-grid">
+              ${this.achievements.map(achievement => `
+                <div class="achievement ${achievement.unlocked ? 'unlocked' : 'locked'}">
+                  <div class="achievement-icon">${achievement.icon}</div>
+                  <div class="achievement-name">${VidyaSec.sanitize(achievement.name)}</div>
+                  <div class="achievement-desc">${VidyaSec.sanitize(achievement.description)}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Learning Preferences -->
+          <div class="settings-section">
+            <h2 class="settings-title">🎯 Learning Preferences</h2>
+            
+            <div class="setting-item">
+              <span class="setting-label">Dark Mode</span>
+              <div class="setting-control">
+                <div class="switch ${App.isDarkMode() ? 'active' : ''}" id="darkModeSwitch" 
+                     onclick="ProfilePage.toggleDarkMode()"></div>
+              </div>
+            </div>
+            
+            <div class="setting-item">
+              <span class="setting-label">Focus Mode</span>
+              <div class="setting-control">
+                <div class="switch ${App.isFocus() ? 'active' : ''}" id="focusModeSwitch" 
+                     onclick="ProfilePage.toggleFocusMode()"></div>
+              </div>
+            </div>
+            
+            <div class="setting-item">
+              <span class="setting-label">Study Reminders</span>
+              <div class="setting-control">
+                <div class="switch active" id="remindersSwitch" 
+                     onclick="ProfilePage.toggleReminders()"></div>
+              </div>
+            </div>
+            
+            <div class="setting-item">
+              <span class="setting-label">Auto-play Videos</span>
+              <div class="setting-control">
+                <div class="switch" id="autoplaySwitch" 
+                     onclick="ProfilePage.toggleAutoplay()"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Account Settings -->
+          <div class="settings-section">
+            <h2 class="settings-title">⚙️ Account Settings</h2>
+            
+            <div class="setting-item">
+              <span class="setting-label">Edit Profile</span>
+              <button class="btn btn-s" onclick="ProfilePage.editProfile()">
+                Edit →
+              </button>
+            </div>
+            
+            <div class="setting-item">
+              <span class="setting-label">Change Password</span>
+              <button class="btn btn-s btn-outline" onclick="ProfilePage.changePassword()">
+                Change →
+              </button>
+            </div>
+            
+            <div class="setting-item">
+              <span class="setting-label">Export Data</span>
+              <button class="btn btn-s btn-outline" onclick="ProfilePage.exportData()">
+                Export →
+              </button>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="action-buttons">
+            <button class="btn btn-b" onclick="ProfilePage.viewProgress()">
+              📊 View Detailed Progress
+            </button>
+            <button class="btn btn-s btn-outline" onclick="ProfilePage.shareProgress()">
+              📤 Share Progress
+            </button>
+            <button class="btn btn-danger" onclick="ProfilePage.logout()">
+              🚪 Logout
+            </button>
+          </div>
+
+          <!-- App Info -->
+          <div class="settings-section">
+            <h2 class="settings-title">ℹ️ About</h2>
+            <div class="setting-item">
+              <span class="setting-label">Version</span>
+              <span class="setting-value">2.0.0</span>
+            </div>
+            <div class="setting-item">
+              <span class="setting-label">Last Sync</span>
+              <span class="setting-value" id="lastSync">Never</span>
+            </div>
+            <div class="setting-item">
+              <span class="setting-label">Storage Used</span>
+              <span class="setting-value" id="storageUsed">Calculating...</span>
+            </div>
+          </div>
+
+        </div>
+      `;
+      
+      // Update app info
+      this.updateAppInfo();
+      
+      // Apply theme
+      App.applyMode();
+      
+      // Initialize real-time sync
+      App.initRealTimeSync();
+      
+      console.log('✅ Profile page rendered successfully');
+      
+    } catch (error) {
+      console.error('❌ Profile page render failed:', error);
+      App.toast('Failed to load profile', '❌');
+      
+      // Show error state
+      const main = document.getElementById('mainArea');
+      main.innerHTML = `
+        <div class="error-state">
+          <div class="error-icon">😔</div>
+          <h2>Profile Not Found</h2>
+          <p>We couldn't find your profile. Please set up your profile first.</p>
+          <button class="btn btn-b" onclick="location.href='dashboard.html'">Go to Dashboard</button>
+        </div>
+      `;
+    }
+  },
+
+  // Calculate user statistics
+  calculateStats(data, progress) {
+    let totalChapters = 0;
+    let completedChapters = 0;
+    let totalQuizScores = [];
+    let studyTime = 0;
+    
+    if (data && data.subjects) {
+      data.subjects.forEach(subject => {
+        if (subject.chapters) {
+          totalChapters += subject.chapters.length;
+          const subjectProgress = progress[subject.id] || {};
+          completedChapters += (subjectProgress.done || []).length;
+          
+          // Collect quiz scores
+          const scores = subjectProgress.scores || {};
+          Object.values(scores).forEach(score => {
+            if (score.pct) totalQuizScores.push(score.pct);
+          });
+        }
+      });
+    }
+    
+    const quizAverage = totalQuizScores.length > 0 ? 
+      Math.round(totalQuizScores.reduce((a, b) => a + b, 0) / totalQuizScores.length) : 0;
+    
+    const streak = parseInt(localStorage.getItem('vm_streak') || '0');
+    const bookmarks = App.getBookmarks().length;
+    
+    // Estimate study time (mock calculation)
+    studyTime = Math.round(completedChapters * 0.5); // 30 minutes per chapter
+    
+    return {
+      totalChapters,
+      completedChapters,
+      streak,
+      quizAverage,
+      studyTime,
+      bookmarks
+    };
+  },
+
+  // Load achievements based on stats
+  loadAchievements(stats) {
+    const achievements = [
+      {
+        id: 'first_chapter',
+        name: 'First Steps',
+        description: 'Complete your first chapter',
+        icon: '🎯',
+        unlocked: stats.completedChapters >= 1
+      },
+      {
+        id: 'week_streak',
+        name: 'Week Warrior',
+        description: '7-day study streak',
+        icon: '🔥',
+        unlocked: stats.streak >= 7
+      },
+      {
+        id: 'quiz_master',
+        name: 'Quiz Master',
+        description: '90%+ quiz average',
+        icon: '🧠',
+        unlocked: stats.quizAverage >= 90
+      },
+      {
+        id: 'bookworm',
+        name: 'Bookworm',
+        description: '10 bookmarks',
+        icon: '📚',
+        unlocked: stats.bookmarks >= 10
+      },
+      {
+        id: 'halfway',
+        name: 'Halfway There',
+        description: 'Complete 50% of content',
+        icon: '⭐',
+        unlocked: stats.totalChapters > 0 && (stats.completedChapters / stats.totalChapters) >= 0.5
+      },
+      {
+        id: 'perfect_score',
+        name: 'Perfect Score',
+        description: '100% on any quiz',
+        icon: '💯',
+        unlocked: false // Would need to check individual quiz scores
+      }
+    ];
+    
+    return achievements;
+  },
+
+  // Toggle dark mode
+  toggleDarkMode() {
+    App.toggleMode();
+    const switchEl = document.getElementById('darkModeSwitch');
+    switchEl.classList.toggle('active', App.isDarkMode());
+  },
+
+  // Toggle focus mode
+  toggleFocusMode() {
+    App.toggleFocus();
+    const switchEl = document.getElementById('focusModeSwitch');
+    switchEl.classList.toggle('active', App.isFocus());
+  },
+
+  // Toggle reminders
+  toggleReminders() {
+    const switchEl = document.getElementById('remindersSwitch');
+    const isActive = switchEl.classList.toggle('active');
+    localStorage.setItem('vm_reminders', isActive ? '1' : '0');
+    App.toast(isActive ? 'Reminders enabled' : 'Reminders disabled', '🔔');
+  },
+
+  // Toggle autoplay
+  toggleAutoplay() {
+    const switchEl = document.getElementById('autoplaySwitch');
+    const isActive = switchEl.classList.toggle('active');
+    localStorage.setItem('vm_autoplay', isActive ? '1' : '0');
+    App.toast(isActive ? 'Autoplay enabled' : 'Autoplay disabled', '📹');
+  },
+
+  // Edit profile
+  editProfile() {
+    // This would open a profile edit modal
+    App.toast('Profile editing coming soon!', '🔧');
+  },
+
+  // Change password
+  changePassword() {
+    // This would open a password change modal
+    App.toast('Password change coming soon!', '🔐');
+  },
+
+  // Export data
+  exportData() {
+    try {
+      const data = {
+        profile: App.getProfile(),
+        progress: App.getProgress(),
+        bookmarks: App.getBookmarks(),
+        timestamp: Date.now()
+      };
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `class10edu-data-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      App.toast('Data exported successfully', '📤');
+    } catch (error) {
+      console.error('Export failed:', error);
+      App.toast('Export failed', '❌');
+    }
+  },
+
+  // View detailed progress
+  viewProgress() {
+    // This would navigate to a detailed progress page
+    App.toast('Detailed progress coming soon!', '📊');
+  },
+
+  // Share progress
+  shareProgress() {
+    const stats = this.calculateStats(null, App.getProgress());
+    const shareText = `🎯 My Class 10Edu Progress:\n` +
+                     `✅ ${stats.completedChapters} chapters completed\n` +
+                     `🔥 ${stats.streak} day streak\n` +
+                     `📊 ${stats.quizAverage}% quiz average\n` +
+                     `📚 ${stats.bookmarks} bookmarks`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: 'My Class 10Edu Progress',
+        text: shareText
+      });
+    } else {
+      // Fallback - copy to clipboard
+      navigator.clipboard.writeText(shareText);
+      App.toast('Progress copied to clipboard', '📋');
+    }
+  },
+
+  // Logout
+  logout() {
+    if (confirm('Are you sure you want to logout?')) {
+      App.logout();
+    }
+  },
+
+  // Update app info
+  updateAppInfo() {
+    // Update last sync time
+    const lastSync = localStorage.getItem('vm_last_sync');
+    if (lastSync) {
+      const date = new Date(parseInt(lastSync));
+      document.getElementById('lastSync').textContent = date.toLocaleString();
+    }
+    
+    // Calculate storage used
+    try {
+      let storageUsed = 0;
+      for (let key in localStorage) {
+        if (localStorage.hasOwnProperty(key)) {
+          storageUsed += localStorage[key].length;
+        }
+      }
+      const storageKB = Math.round(storageUsed / 1024);
+      document.getElementById('storageUsed').textContent = `${storageKB} KB`;
+    } catch (error) {
+      document.getElementById('storageUsed').textContent = 'Unknown';
+    }
+  },
+
+  // Check if dark mode is active
+  isDarkMode() {
+    return localStorage.getItem('vm_mode') === 'dark';
+  },
+
+  // Refresh page with new data
+  async refresh() {
+    console.log('🔄 Refreshing profile page...');
+    await this.render();
+    App.toast('Profile updated', '🔄');
+  }
+};
+
+// Initialize profile page when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // Initialize app
+    await App.init();
+    
+    // Check authentication
+    if (!App.hasProfile()) {
+      location.href = 'dashboard.html';
+      return;
+    }
+    
+    // Initialize page
+    App.initPage('profile');
+    App.renderBottomNav('profile');
+    
+    // Render profile
+    await ProfilePage.render();
+    
+    // Setup page-specific refresh
+    App.refreshCurrentPage = () => ProfilePage.refresh();
+    
+  } catch (error) {
+    console.error('❌ Profile page initialization failed:', error);
+    App.toast('Page initialization failed', '❌');
+  }
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Welcome — Class 10Edu</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+.login-container {
+  max-width: 800px;
+  width: 100%;
+  padding: 24px;
+  position: relative;
+  z-index: 10;
+}
+.role-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 48px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--t-slow) var(--spring);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.role-card:hover {
+  transform: translateY(-16px) scale(1.03);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--accent);
+}
+.role-card .icon {
+  font-size: 4rem;
+  margin-bottom: 24px;
+  line-height: 1;
+  transition: all var(--t) var(--ease);
+}
+.role-card:hover .icon {
+  transform: scale(1.1);
+}
+.role-card h2 {
+  font-size: 2rem;
+  margin-bottom: 12px;
+}
+.role-card p {
+  color: var(--ink-3);
+  font-size: 1.1rem;
+  max-width: 400px;
+  margin: 0 auto;
+}
+.role-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(var(--accent-rgb), 0.1), transparent 50%);
+  opacity: 0;
+  transition: opacity var(--t-slow);
+}
+.role-card:hover::before {
+  opacity: 1;
+}
+</style>
+</head>
+<body class="login-page">
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<div class="login-container">
+  <div style="text-align:center; margin-bottom:64px">
+    <div class="nav-gem" style="margin:0 auto 24px; width:80px; height:80px; font-size:32px; border-radius:24px">C</div>
+    <h1 class="hero-title" style="font-size:3rem; margin:0">Welcome to Class 10Edu</h1>
+    <p class="hero-sub" style="margin:16px auto 0">Your futuristic learning environment awaits.</p>
+  </div>
+
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:32px">
+    <div class="role-card" onclick="selectRole('student')">
+      <div class="icon">🎓</div>
+      <h2>I am a Student</h2>
+      <p>Access lessons, track progress, and achieve your goals.</p>
+    </div>
+    <div class="role-card" onclick="selectRole('teacher')">
+      <div class="icon">🧑‍🏫</div>
+      <h2>I am a Teacher</h2>
+      <p>Create question papers, monitor students, and manage content.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+function selectRole(role) {
+  localStorage.setItem('vm_user_role', role);
+  window.location.href = 'dashboard.html';
+}
+
+document.querySelectorAll('.role-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    card.style.setProperty('--x', `${x}px`);
+    card.style.setProperty('--y', `${y}px`);
+  });
+});
+</script>
+
+</body>
+</html>
